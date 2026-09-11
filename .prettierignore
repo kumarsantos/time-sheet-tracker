@@ -1,0 +1,15 @@
+# Build artifacts
+.next
+out
+build
+coverage
+
+# Generated
+next-env.d.ts
+pnpm-lock.yaml
+
+# Dependencies
+node_modules
+
+# Static assets
+public
