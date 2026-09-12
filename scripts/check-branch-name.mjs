@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
-const allowedTypes = [
+export const allowedTypes = [
   'feature',
   'fix',
   'hotfix',
@@ -13,17 +14,22 @@ const allowedTypes = [
   'build',
   'revert',
 ];
-const exemptBranches = ['main', 'master', 'develop', 'staging', 'release'];
+export const exemptBranches = ['main', 'master', 'develop', 'staging', 'release'];
 
-const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-
-if (exemptBranches.includes(branch)) {
-  process.exit(0);
+export function isValidBranchName(branch) {
+  if (exemptBranches.includes(branch)) return true;
+  return allowedTypes.some((type) => branch === type || branch.startsWith(`${type}/`));
 }
 
-const valid = allowedTypes.some((type) => branch === type || branch.startsWith(`${type}/`));
+const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-if (!valid) {
+if (isCli) {
+  const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+
+  if (isValidBranchName(branch)) {
+    process.exit(0);
+  }
+
   console.error(
     `\nBranch name "${branch}" does not follow convention.\n` +
       `Allowed prefixes: ${allowedTypes.join(', ')}\n` +
