@@ -30,13 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files - shared public values are committed; secrets stay in *.local files
+# env files - committed; *.local reserved for one-off machine overrides
 .env
-.env.local
-.env.*.local
-!.env.example
-!.env.development
-!.env.production
+.env.*
 
 # vercel
 .vercel

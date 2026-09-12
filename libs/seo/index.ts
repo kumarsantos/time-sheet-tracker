@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 const APP_DEFAULT_TITLE = 'Your App Name';
 const APP_TITLE_TEMPLATE = '%s | Your App Name';
 const APP_DESCRIPTION = 'Production-grade Next.js application built with clean architecture.';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com';
+const APP_URL = process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000';
 
 interface ConstructMetadataParams {
   title?: string;
