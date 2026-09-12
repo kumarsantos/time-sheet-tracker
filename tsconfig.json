@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -19,7 +19,14 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@components/*": ["./components/*"],
+      "@data/*": ["./data/*"],
+      "@services/*": ["./services/*"],
+      "@apis/*": ["./apis/*"],
+      "@screens/*": ["./screens/*"],
+      "@libs/*": ["./libs/*"],
+      "@hooks/*": ["./hooks/*"]
     }
   },
   "include": [
