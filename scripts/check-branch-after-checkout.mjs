@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { isValidBranchName } from './check-branch-name.mjs';
+import { allowedTypes, isValidBranchName } from './check-branch-name.mjs';
 
 const flag = process.argv[4];
 
@@ -15,7 +15,22 @@ if (!branch || isValidBranchName(branch)) {
   process.exit(0);
 }
 
-console.error(`[branch-guard] Branch name "${branch}" violates branch naming convention.`);
+console.error('');
+console.error(`[branch-guard] Branch name "${branch}" violates the branch naming convention.`);
+console.error('');
+console.error('Expected format:');
+console.error('  <prefix>/<branch-name>');
+console.error('');
+console.error(`Allowed prefixes: ${allowedTypes.join(', ')}`);
+console.error('');
+console.error('Examples:');
+console.error('  feature/timesheet-grid');
+console.error('  fix/expense-calc');
+console.error('  hotfix/login-crash');
+console.error('  chore/lint-setup');
+console.error('  refactor/api-client');
+console.error('  docs/update-readme');
+console.error('');
 
 const prev = execSync('git rev-parse --abbrev-ref "@{-1}"', { encoding: 'utf8' }).trim() || '';
 
