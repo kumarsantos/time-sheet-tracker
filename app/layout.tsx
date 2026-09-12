@@ -17,7 +17,7 @@ export default function RootLayout({
       className={`${fontInter.variable} ${fontMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="bg-background text-foreground flex min-h-full flex-col">{children}</body>
+      <body className="bg-background text-foreground min-h-screen">{children}</body>
     </html>
   );
 }
