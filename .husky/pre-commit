@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 
 # 1. Branch name validation (Instant)
 node scripts/check-branch-name.mjs
