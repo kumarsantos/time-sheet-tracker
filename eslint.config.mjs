@@ -28,6 +28,12 @@ const eslintConfig = defineConfig([
     },
   },
   prettierConfig,
+  {
+    files: ['scripts/**'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
   globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'node_modules/**']),
 ]);
 

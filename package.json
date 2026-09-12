@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node scripts/load-env.mjs development dev",
+    "dev:prod": "node scripts/load-env.mjs development dev --env=production",
+    "build": "node scripts/load-env.mjs production build",
+    "start": "node scripts/load-env.mjs production start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -35,6 +36,7 @@
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
   },
   "packageManager": "pnpm@11.3.0",
