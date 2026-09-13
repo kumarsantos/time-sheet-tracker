@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { type LoginFormData, loginSchema } from '@/libs/validations/auth';
+import { type LoginFormData, loginSchema } from '@/lib/validations/auth';
 
 const INITIAL_LOGIN_FORM_VALUES: LoginFormData = {
   email: '',
