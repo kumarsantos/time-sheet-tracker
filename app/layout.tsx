@@ -1,7 +1,8 @@
-import { fontInter, fontMono } from '@/libs/fonts';
-import { constructMetadata } from '@/libs/seo';
-import { viewport as appViewport } from '@/libs/viewport';
+import { fontInter, fontMono } from '@/lib/fonts';
+import { constructMetadata } from '@/lib/seo';
+import { viewport as appViewport } from '@/lib/viewport';
 import './globals.css';
+import { cn } from '@/lib/utils';
 
 export const metadata = constructMetadata();
 export const viewport = appViewport;
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fontInter.variable} ${fontMono.variable} h-full antialiased`}
+      className={cn('h-full', 'antialiased', fontInter.variable, fontMono.variable, 'font-sans')}
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground min-h-screen">{children}</body>
