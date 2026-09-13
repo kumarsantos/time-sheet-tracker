@@ -6,7 +6,7 @@ import type { NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { Pool as PgPool } from 'pg';
 import { neon } from '@neondatabase/serverless';
 import * as schema from './schema';
-import { logger } from '@/libs/logger';
+import { logger } from '@/lib/logger';
 
 const isProduction = process.env.NODE_ENV === 'production';
 

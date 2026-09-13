@@ -1,6 +1,6 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { logger } = await import('./libs/logger');
+    const { logger } = await import('./lib/logger');
     const { testDbConnection, closeDb } = await import('./app/database/index');
 
     const isProduction = process.env.NODE_ENV === 'production';

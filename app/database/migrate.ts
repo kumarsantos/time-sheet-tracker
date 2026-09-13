@@ -6,7 +6,7 @@ import { migrate as migrateNeon } from 'drizzle-orm/neon-http/migrator';
 import { Pool } from 'pg';
 import { neon } from '@neondatabase/serverless';
 import * as dotenv from 'dotenv';
-import { logger } from '@/libs/logger';
+import { logger } from '@/lib/logger';
 
 const environment = process.env.NODE_ENV || 'development';
 dotenv.config({ path: `.env.${environment}`, override: true });
