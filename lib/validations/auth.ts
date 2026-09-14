@@ -13,7 +13,7 @@ export const loginSchema = z.object({
     .regex(/[a-z]/, { message: 'Password must contain at least one lowercase letter' })
     .regex(/[0-9]/, { message: 'Password must contain at least one number' })
     .regex(/[^a-zA-Z0-9]/, { message: 'Password must contain at least one special character' }),
-  rememberMe: z.boolean(),
+  rememberMe: z.boolean().optional(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
