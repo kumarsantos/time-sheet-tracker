@@ -1,3 +1,4 @@
+import { Toaster } from 'sonner';
 import { fontInter } from '@/lib/fonts';
 import { constructMetadata } from '@/lib/seo';
 import { viewport as appViewport } from '@/lib/viewport';
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`h-full antialiased ${fontInter.variable}`} suppressHydrationWarning>
-      <body className="bg-background text-foreground min-h-screen">{children}</body>
+      <body className="bg-background text-foreground min-h-screen">
+        {children}
+        <Toaster richColors position="top-right" />
+      </body>
     </html>
   );
 }
