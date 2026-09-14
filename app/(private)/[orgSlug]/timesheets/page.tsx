@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import TimesheetScreen from '@/screens/TimesheetScreen';
+import TimesheetListSkeleton from '@/components/timesheets/TimesheetListSkeleton';
 
 interface PageProps {
   params: Promise<{ orgSlug: string }>;
@@ -19,15 +20,7 @@ export default async function TimesheetsPage({ params, searchParams }: PageProps
   const endDate = typeof query.endDate === 'string' ? query.endDate : undefined;
 
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[60vh] items-center justify-center p-6">
-          <div className="mx-auto w-full max-w-2xl rounded-lg bg-white p-6 shadow">
-            <p className="animate-pulse text-sm text-gray-500">Loading timesheets…</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<TimesheetListSkeleton />}>
       <TimesheetScreen
         orgSlug={orgSlug}
         page={page}

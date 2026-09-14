@@ -108,6 +108,26 @@ export const projects = pgTable(
   (table) => [index('idx_projects_org').on(table.orgId)],
 );
 
+export const workTypes = pgTable(
+  'work_types',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 100 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index('idx_work_types_org').on(table.orgId),
+    unique('uq_work_types_org_name').on(table.orgId, table.name),
+  ],
+);
+
 export const timesheets = pgTable(
   'timesheets',
   {
@@ -211,6 +231,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   memberships: many(orgMemberships),
   projects: many(projects),
+  workTypes: many(workTypes),
   timesheets: many(timesheets),
 }));
 
@@ -225,6 +246,10 @@ export const orgMembershipsRelations = relations(orgMemberships, ({ one }) => ({
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   organization: one(organizations, { fields: [projects.orgId], references: [organizations.id] }),
   works: many(works),
+}));
+
+export const workTypesRelations = relations(workTypes, ({ one }) => ({
+  organization: one(organizations, { fields: [workTypes.orgId], references: [organizations.id] }),
 }));
 
 export const timesheetsRelations = relations(timesheets, ({ one, many }) => ({

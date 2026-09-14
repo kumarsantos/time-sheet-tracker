@@ -7,6 +7,7 @@ import {
   orgMemberships,
   users,
   projects,
+  workTypes,
   timesheets,
   timeEntries,
   works,
@@ -77,26 +78,12 @@ const toISODate = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
-// Monday (0) .. Sunday (6) index for the given local date
-const getLocalMondayIndex = (date: Date) => (date.getDay() + 6) % 7;
-
-// ISO-8601 week number for a given date
-const getISOWeek = (date: Date): number => {
-  const utc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-  const target = new Date(utc);
-  const dayNum = (target.getUTCDay() + 6) % 7; // Monday=0
-  target.setUTCDate(target.getUTCDate() - dayNum + 3); // nearest Thursday
-  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
-  const diff =
-    ((target.getTime() - firstThursday.getTime()) / 86400000 + firstThursday.getUTCDay() + 1) / 7;
-  return Math.ceil(diff);
-};
-
 async function wipe() {
   await db.delete(works);
   await db.delete(timeEntries);
   await db.delete(timesheets);
   await db.delete(projects);
+  await db.delete(workTypes);
   await db.delete(orgMemberships);
   await db.delete(organizations);
   await db.delete(users);
@@ -178,26 +165,34 @@ async function main(): Promise<void> {
     }
   }
 
-  /* 5. Timesheets + time entries across recent full weeks (Mon → Sun) */
+  /* 4b. Work types across orgs */
+  for (const orgId of orgIds) {
+    const names = orgId === org1!.id ? WORK_TYPES : WORK_TYPES.slice(0, 3);
+    await db.insert(workTypes).values(names.map((name) => ({ orgId, name })));
+  }
+
+  /* 5. Timesheets + time entries for the full current year (Jan → Dec), one
+     week at a time from the first Monday on/after Jan 1 through the last Monday
+     of the year. Each timesheet holds 5 working-day entries (Mon → Fri). */
   const projectPool = projectIds.filter((p) => p.orgId === org1!.id);
   const entryPool = ENTRY_NOTES;
+  const seedYear = now.getFullYear();
 
-  // Anchor the most recent timesheet to the start (Monday) of the current week,
-  // then walk backwards one full week at a time.
-  const currentWeekStart = new Date(now);
-  currentWeekStart.setDate(now.getDate() - getLocalMondayIndex(now));
-  currentWeekStart.setHours(0, 0, 0, 0);
+  // First Monday on or after Jan 1 of the seed year (getDay(): Mon=1)
+  const firstDayOfYear = new Date(seedYear, 0, 1);
+  const firstMonday = new Date(firstDayOfYear);
+  firstMonday.setDate(firstDayOfYear.getDate() + ((1 - firstDayOfYear.getDay() + 7) % 7));
+  firstMonday.setHours(0, 0, 0, 0);
 
-  for (let w = 0; w < 20; w++) {
-    const start = new Date(currentWeekStart);
-    start.setDate(currentWeekStart.getDate() - w * 7);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
+  const weekStart = new Date(firstMonday);
+  let weekNumberCounter = 1;
+  while (weekStart.getFullYear() === seedYear) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 4); // Friday
 
-    const startDateStr = toISODate(start);
-    const endDateStr = toISODate(end);
-    const weekNumber = getISOWeek(start);
-    const year = start.getFullYear();
+    const startDateStr = toISODate(weekStart);
+    const endDateStr = toISODate(weekEnd);
+    const weekNumber = weekNumberCounter;
 
     const [ts] = await db
       .insert(timesheets)
@@ -205,25 +200,26 @@ async function main(): Promise<void> {
         orgId: org1!.id,
         userId: demoUser.id,
         weekNumber,
-        year,
+        year: seedYear,
         startDate: startDateStr,
         endDate: endDateStr,
-        status: w === 4 ? 'SUBMITTED' : 'COMPLETED',
         targetHours: '40.00',
         totalHoursLogged: '0.00',
       })
       .returning({ id: timesheets.id });
 
-    if (!ts) continue;
+    if (!ts) {
+      weekStart.setDate(weekStart.getDate() + 7);
+      continue;
+    }
 
     let totalLogged = 0;
 
-    // Iterate day by day from startDate to endDate inclusive and auto-create a
-    // day entry per date; works are attached to each day entry afterwards.
-    const cursor = new Date(start);
-    while (toISODate(cursor) <= endDateStr) {
+    // 5 working days Mon → Fri, one day entry + one work per day
+    const cursor = new Date(weekStart);
+    for (let day = 0; day < 5; day++) {
       const entryDate = toISODate(cursor);
-      const hoursLogged = between(rng, 6, 8); // Generates between 6 and 8 hours daily
+      const hoursLogged = between(rng, 7, 9); // Generates between 7 and 9 hours daily
       const formattedHours = hoursLogged.toFixed(2);
 
       totalLogged += hoursLogged;
@@ -251,11 +247,15 @@ async function main(): Promise<void> {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    // Update parent timesheet total logged hours
-    await db
-      .update(timesheets)
-      .set({ totalHoursLogged: totalLogged.toFixed(2) })
-      .where(eq(timesheets.id, ts.id));
+    // Derive status from the weekly total so it stays consistent with the
+    // add/edit/delete logic (< target -> INCOMPLETE, >= target -> COMPLETED)
+    const totalHoursLogged = totalLogged.toFixed(2);
+    const status = totalLogged >= 40 ? 'COMPLETED' : 'INCOMPLETE';
+
+    await db.update(timesheets).set({ totalHoursLogged, status }).where(eq(timesheets.id, ts.id));
+
+    weekStart.setDate(weekStart.getDate() + 7);
+    weekNumberCounter += 1;
   }
 
   await pool.end();

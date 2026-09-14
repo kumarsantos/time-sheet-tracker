@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     // 5. Pagination & Sorting Setup
     const page = parseBoundedInt(searchParams.get('page'), 1);
     const limit = parseBoundedInt(searchParams.get('limit'), DEFAULT_LIMIT, MAX_LIMIT);
-    const sort: SortKey = isSortKey(sortParam) ? sortParam : 'startDate';
+    const sort: SortKey = isSortKey(sortParam) ? sortParam : 'weekNumber';
     const order = orderParam === 'desc' ? desc : asc;
     const sortColumn = SORT_COLUMNS[sort];
 

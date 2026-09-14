@@ -1,6 +1,12 @@
 import type { StatusResponse, TimesheetQueryParams, TimesheetResponse } from '@/types/timesheets';
 import { apiClient } from '../api';
-import type { TimesheetDetailsResponse } from '@/types/timesheet-details';
+import type {
+  AddWorkOptionsResponse,
+  AddWorkPayload,
+  AddWorkResponse,
+  DeleteWorkResponse,
+  TimesheetDetailsResponse,
+} from '@/types/timesheet-details';
 
 export interface CreateTimesheetParams {
   orgSlug: string;
@@ -28,4 +34,34 @@ export const timesheetService = {
   // GET /api/timesheets/timesheetId?orgId=amz-cmp
   getTimesheetsDetails: (orgSlug: string, id: string) =>
     apiClient.get<TimesheetDetailsResponse>('/timesheets/' + id, { orgSlug }),
+
+  // GET /api/timesheets/options?orgSlug=... — projects + work types for the Add work form
+  getAddWorkOptions: (orgSlug: string) =>
+    apiClient.get<AddWorkOptionsResponse>('/timesheets/options', { orgSlug }),
+
+  // POST /api/timesheets/:timesheetId/entries/:entryId/works?orgSlug=...
+  addWork: (orgSlug: string, timesheetId: string, entryId: string, payload: AddWorkPayload) =>
+    apiClient.post<AddWorkResponse>(
+      `/timesheets/${timesheetId}/entries/${entryId}/works?orgSlug=${encodeURIComponent(orgSlug)}`,
+      payload,
+    ),
+
+  // PUT /api/timesheets/:timesheetId/entries/:entryId/works/:workId?orgSlug=...
+  updateWork: (
+    orgSlug: string,
+    timesheetId: string,
+    entryId: string,
+    workId: string,
+    payload: AddWorkPayload,
+  ) =>
+    apiClient.put<AddWorkResponse>(
+      `/timesheets/${timesheetId}/entries/${entryId}/works/${workId}?orgSlug=${encodeURIComponent(orgSlug)}`,
+      payload,
+    ),
+
+  // DELETE /api/timesheets/:timesheetId/entries/:entryId/works/:workId?orgSlug=...
+  deleteWork: (orgSlug: string, timesheetId: string, entryId: string, workId: string) =>
+    apiClient.delete<DeleteWorkResponse>(
+      `/timesheets/${timesheetId}/entries/${entryId}/works/${workId}?orgSlug=${encodeURIComponent(orgSlug)}`,
+    ),
 };

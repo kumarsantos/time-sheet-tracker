@@ -162,10 +162,10 @@ export function Dropdown(props: DropdownProps) {
       onValueChange={props.onValueChange}
       disabled={disabled}
     >
-      <SelectTrigger className={cn('rounded-lg border-gray-300 bg-white', className)}>
+      <SelectTrigger className={cn('rounded-sm border-gray-300 bg-white', className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className="rounded-xl">
+      <SelectContent className="rounded-sm">
         <SelectGroup>
           {groupLabel && <SelectLabel>{groupLabel}</SelectLabel>}
           {items.map((item) => (

@@ -100,7 +100,7 @@ export function DatePicker(props: DatePickerProps) {
             variant="outline"
             disabled={disabled}
             className={cn(
-              'justify-between rounded-lg border-gray-300 bg-white font-normal hover:bg-gray-50 focus:ring-2 focus:ring-[#1D61E8]/20',
+              'justify-between rounded-sm border-gray-300 bg-white font-normal hover:bg-gray-50 focus:ring-2 focus:ring-[#1D61E8]/20',
               !hasSelectedValue && 'text-gray-500',
             )}
           >
@@ -108,7 +108,7 @@ export function DatePicker(props: DatePickerProps) {
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto rounded-xl p-0" align={align}>
+        <PopoverContent className="w-auto rounded-sm p-0" align={align}>
           {props.mode === 'single' ? (
             <Calendar
               mode="single"

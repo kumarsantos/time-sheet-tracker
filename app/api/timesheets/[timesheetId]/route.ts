@@ -67,6 +67,12 @@ export async function GET(request: Request, { params }: RouteParams) {
       .from(timeEntries)
       .where(eq(timeEntries.timesheetId, targetTimesheet.id));
 
+    // Fetch org projects for the "Add work" form
+    const orgProjects = await db
+      .select({ id: projects.id, name: projects.name })
+      .from(projects)
+      .where(eq(projects.orgId, targetOrgId));
+
     // Fetch works joined with project name for every entry
     const allWorks = dayEntries.length
       ? await db
@@ -109,6 +115,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         status: targetTimesheet.status,
         targetHours: targetTimesheet.targetHours,
         totalHoursLogged: targetTimesheet.totalHoursLogged,
+        projects: orgProjects,
         createdAt: targetTimesheet.createdAt.toISOString(),
         updatedAt: targetTimesheet.updatedAt.toISOString(),
         entries: dayEntries.map((entry) => ({

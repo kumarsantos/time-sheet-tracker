@@ -52,7 +52,7 @@ const TimesheetListContainer = ({
   const columns: Column<TimesheetItem>[] = useMemo(
     () => [
       {
-        key: 'weekNum',
+        key: 'weekNumber',
         header: 'WEEK #',
         sortable: true,
         bodyCellColor: 'bg-gray-50',
@@ -61,7 +61,7 @@ const TimesheetListContainer = ({
         render: (row) => <span className="text-sm text-gray-900">{row.weekNum}</span>,
       },
       {
-        key: 'date',
+        key: 'startDate',
         header: 'DATE',
         sortable: true,
         headCellColor: 'bg-gray-50',
