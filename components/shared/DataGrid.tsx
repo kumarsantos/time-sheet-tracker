@@ -51,7 +51,7 @@ export function DataGrid<T extends object>({
 
   // --- 3. SORT HANDLER ---
   const handleSort = (columnKey: string) => {
-    let newDirection: SortDirection = 'asc';
+    let newDirection: SortDirection = 'desc';
 
     if (activeSortKey === columnKey) {
       newDirection = activeSortOrder === 'asc' ? 'desc' : 'asc';
@@ -139,9 +139,12 @@ export function DataGrid<T extends object>({
     : processedData.length;
   const totalPages = Math.max(1, meta?.totalPages ?? Math.ceil(total / pageSize));
 
-  // In server mode the pagination footer is driven by `meta`: it shows whenever there is
-  // more than one page (unless explicitly disabled via the `pagination` prop).
-  const shouldShowPagination = isServer ? (meta ? meta.totalPages > 1 : pagination) : pagination;
+  // Single-page datasets don't need a footer: on page 1 with fewer rows than the page
+  // size there is nothing to paginate (this also covers the server mode via `totalPages`).
+  const fitsOnOnePage = currentPage === 1 && total <= pageSize;
+  const shouldShowPagination = isServer
+    ? (meta ? meta.totalPages > 1 : pagination) && !fitsOnOnePage
+    : pagination && !fitsOnOnePage;
 
   const paginatedData = useMemo(() => {
     if (isServer || !pagination) return processedData;
@@ -292,23 +295,22 @@ export function DataGrid<T extends object>({
       {/* PAGINATION FOOTER */}
       {shouldShowPagination && (
         <div className="flex flex-col items-center justify-between gap-4 pt-2 sm:flex-row">
-          {/* PAGE SIZE SELECTOR — hidden in server mode */}
-          {!isServer && (
-            <div className="relative inline-flex items-center">
-              <select
-                value={pageSize}
-                onChange={handlePageSizeChange}
-                className="appearance-none rounded-lg border border-gray-200 bg-white py-2 pr-8 pl-3 text-xs font-medium text-gray-700 hover:border-gray-300 focus:outline-none"
-              >
-                {pageSizeOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt} per page
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-gray-400" />
-            </div>
-          )}
+          {/* PAGE SIZE SELECTOR — works in client (local state) and server (URL limit=) mode */}
+          <div className="relative inline-flex items-center">
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              aria-label="Rows per page"
+              className="cursor-pointer appearance-none rounded-sm border border-gray-200 bg-white py-2 pr-8 pl-3 text-xs font-medium text-gray-700 hover:border-gray-300 focus:outline-none"
+            >
+              {pageSizeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt} per page
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-gray-400" />
+          </div>
 
           {/* PAGE NAVIGATION BUTTONS */}
           <div

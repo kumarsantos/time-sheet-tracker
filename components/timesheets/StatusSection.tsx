@@ -75,6 +75,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
 
     setQueryParams({
       page: null,
+      limit: null,
       [dateQueryKeyStart]: newRange?.from ? format(newRange.from, 'yyyy-MM-dd') : null,
       [dateQueryKeyEnd]: newRange?.to ? format(newRange.to, 'yyyy-MM-dd') : null,
     });
@@ -100,7 +101,11 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
               onStatusChange(val);
               return;
             }
-            setQueryParams({ page: null, [statusQueryKey]: val.length ? val.join(',') : null });
+            setQueryParams({
+              page: null,
+              limit: null,
+              [statusQueryKey]: val.length ? val.join(',') : null,
+            });
           }}
           placeholder="Status"
           className="w-auto min-w-48"
@@ -117,7 +122,11 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
               onStatusChange(val);
               return;
             }
-            setQueryParams({ page: null, [statusQueryKey]: val === 'all' ? null : val });
+            setQueryParams({
+              page: null,
+              limit: null,
+              [statusQueryKey]: val === 'all' ? null : val,
+            });
           }}
           placeholder="Status"
           className="w-auto min-w-48"

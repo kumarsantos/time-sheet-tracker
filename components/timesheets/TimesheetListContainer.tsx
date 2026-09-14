@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import type { SelectOption } from '@/components/shared/Dropdown';
 import type { TimesheetItem } from '@/types/timesheets';
 import { parseWeekStart } from '@/lib/helpers';
+import { TIMESHEET_LIST_DEFAULT_LIMIT } from '@/lib/constants';
 import { useQueryParams } from '@/hooks/useQueryParams';
 import { useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -44,7 +45,7 @@ const TimesheetListContainer = ({
       (statusToken) => !allowedStatusSet.has(statusToken),
     );
     if (containsUnrecognizedStatus) {
-      setQueryParams({ status: null });
+      setQueryParams({ status: null, limit: null });
     }
   }, [statusValue, allowedStatusSet, setQueryParams]);
 
@@ -98,7 +99,13 @@ const TimesheetListContainer = ({
     <div className="mx-auto w-full space-y-4 rounded-lg bg-white p-6 shadow">
       <h1 className="text-2xl font-bold text-gray-900">Your Timesheets</h1>
       <StatusSection statusItems={statusItems} statusValue={statusValue} />
-      <DataGrid columns={columns} data={timesheets} mode="server" meta={meta} />
+      <DataGrid
+        columns={columns}
+        data={timesheets}
+        mode="server"
+        meta={meta}
+        defaultPageSize={TIMESHEET_LIST_DEFAULT_LIMIT}
+      />
     </div>
   );
 };

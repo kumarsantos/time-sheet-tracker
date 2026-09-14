@@ -24,5 +24,19 @@ export const TIMESHEET_LIST_MAX_LIMIT = 100;
 export const TIMESHEET_HOURS_MIN = 0.5;
 export const TIMESHEET_HOURS_MAX = 24;
 
+/** Stepping used by the work hours input and its stepper controls. */
+export const TIMESHEET_HOURS_STEP = 0.5;
+
+/** Default hours value pre-filled when adding a new work entry. */
+export const INITIAL_WORK_HOURS_DEFAULT = '12';
+
+/** Empty values used to seed the Add/Edit work form. */
+export const INITIAL_WORK_FORM_VALUES = {
+  projectId: '',
+  typeOfWork: '',
+  description: '',
+  hours: '',
+} as const;
+
 /** Maximum day-span accepted when auto-generating time entries for a new timesheet. */
 export const TIMESHEET_CREATE_MAX_DAY_SPAN = 14;

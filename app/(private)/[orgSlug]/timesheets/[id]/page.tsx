@@ -6,6 +6,7 @@ import { constructMetadata } from '@/lib/seo';
 export const metadata = constructMetadata({
   title: 'Timesheet Details',
   description: 'Review and manage the work logged for a weekly timesheet.',
+  noIndex: true,
 });
 
 interface PageProps {

@@ -1,4 +1,3 @@
-import { eq } from 'drizzle-orm';
 import * as dotenv from 'dotenv';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -36,7 +35,6 @@ export const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Demo#Pass1';
 export const DEMO_ORG_SLUG = process.env.SEED_DEMO_ORG_SLUG ?? 'acme-analytics';
 
 const WORK_TYPES = ['Development', 'Meeting', 'Code Review', 'Documentation', 'Testing', 'Support'];
-const WORK_TYPE_VALUES = WORK_TYPES;
 const PROJECT_NAMES = [
   'Mobile App',
   'Web Dashboard',
@@ -45,31 +43,6 @@ const PROJECT_NAMES = [
   'Design System',
   'Infrastructure',
 ];
-const ENTRY_NOTES = [
-  'Implemented feature X',
-  'Fixed flaky test suite',
-  'Reviewed PR #123',
-  'Wrote integration tests',
-  'Refactored legacy module',
-  'Debugged production issue',
-];
-
-/* Deterministic PRNG so re-running the seed is reproducible in CI. */
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a += 0x6d2b79f5;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const pick = <T>(rng: () => number, list: readonly T[]): T =>
-  list[Math.floor(rng() * list.length)]!;
-const between = (rng: () => number, min: number, max: number) =>
-  Math.floor(rng() * (max - min + 1)) + min;
 
 const toISODate = (date: Date): string => {
   const y = date.getFullYear();
@@ -112,7 +85,6 @@ async function main(): Promise<void> {
     throw new Error('Failed to insert demo user');
   }
 
-  const rng = mulberry32(20260101);
   const now = new Date();
 
   /* 2. Organizations */
@@ -175,9 +147,7 @@ async function main(): Promise<void> {
 
   /* 5. Timesheets + time entries for the full current year (Jan → Dec), one
      week at a time from the first Monday on/after Jan 1 through the last Monday
-     of the year. Each timesheet holds 5 working-day entries (Mon → Fri). */
-  const projectPool = projectIds.filter((p) => p.orgId === org1!.id);
-  const entryPool = ENTRY_NOTES;
+     of the year. Each timesheet holds 5 working-day entries (Mon → Fri), all empty. */
   const seedYear = now.getFullYear();
 
   // First Monday on or after Jan 1 of the seed year (getDay(): Mon=1)
@@ -207,6 +177,7 @@ async function main(): Promise<void> {
         endDate: endDateStr,
         targetHours: '40.00',
         totalHoursLogged: '0.00',
+        status: 'INCOMPLETE', // 0 hrs logged < 40 target → clean slate for the demo
       })
       .returning({ id: timesheets.id });
 
@@ -215,46 +186,21 @@ async function main(): Promise<void> {
       continue;
     }
 
-    let totalLogged = 0;
-
-    // 5 working days Mon → Fri, one day entry + one work per day
+    // 5 working days Mon → Fri with empty entries. Works are intentionally NOT
+    // seeded — entries only ever show work the user actually associates with a
+    // timesheet (add/edit/delete flows populate them).
     const cursor = new Date(weekStart);
     for (let day = 0; day < 5; day++) {
       const entryDate = toISODate(cursor);
-      const hoursLogged = between(rng, 7, 9); // Generates between 7 and 9 hours daily
-      const formattedHours = hoursLogged.toFixed(2);
 
-      totalLogged += hoursLogged;
-
-      const [dayEntry] = await db
-        .insert(timeEntries)
-        .values({
-          timesheetId: ts.id,
-          userId: demoUser.id,
-          entryDate,
-        })
-        .returning({ id: timeEntries.id });
-
-      if (dayEntry) {
-        await db.insert(works).values({
-          timeEntryId: dayEntry.id,
-          userId: demoUser.id,
-          projectId: pick(rng, projectPool)!.id,
-          typeOfWork: pick(rng, WORK_TYPE_VALUES),
-          description: pick(rng, entryPool),
-          hours: formattedHours,
-        });
-      }
+      await db.insert(timeEntries).values({
+        timesheetId: ts.id,
+        userId: demoUser.id,
+        entryDate,
+      });
 
       cursor.setDate(cursor.getDate() + 1);
     }
-
-    // Derive status from the weekly total so it stays consistent with the
-    // add/edit/delete logic (< target -> INCOMPLETE, >= target -> COMPLETED)
-    const totalHoursLogged = totalLogged.toFixed(2);
-    const status = totalLogged >= 40 ? 'COMPLETED' : 'INCOMPLETE';
-
-    await db.update(timesheets).set({ totalHoursLogged, status }).where(eq(timesheets.id, ts.id));
 
     weekStart.setDate(weekStart.getDate() + 7);
     weekNumberCounter += 1;

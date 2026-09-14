@@ -1,4 +1,4 @@
-import { MONTHS } from '../constants';
+import { TIMESHEET_HOURS_MAX, TIMESHEET_HOURS_MIN, MONTHS } from '../constants';
 
 export const monthIndex = (month: string) =>
   MONTHS.indexOf(month.charAt(0).toUpperCase() + month.slice(1).toLowerCase());
@@ -31,4 +31,13 @@ export const formatRangeSubheader = (startDateStr: string, endDateStr: string, y
   const endFormatted = end.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
 
   return `${startFormatted} - ${endFormatted}, ${year}`;
+};
+
+/**
+ * Clamps a raw hour value into the allowed [MIN, MAX] range (in 0.5 steps)
+ * and returns it as the string the hours input expects.
+ */
+export const clampHours = (value: number): string => {
+  const rounded = Math.round(value * 2) / 2;
+  return String(Math.min(TIMESHEET_HOURS_MAX, Math.max(TIMESHEET_HOURS_MIN, rounded)));
 };

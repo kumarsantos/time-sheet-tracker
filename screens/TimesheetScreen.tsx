@@ -1,11 +1,12 @@
 import TimesheetListContainer from '@/components/timesheets/TimesheetListContainer';
-import { TIMESHEET_LIST_DEFAULT_LIMIT } from '@/lib/constants';
+import { TIMESHEET_LIST_DEFAULT_LIMIT, TIMESHEET_LIST_MAX_LIMIT } from '@/lib/constants';
 import { getStatusItems, requireTenant } from '@/services/timesheet/data';
 import { getTimesheetListCached } from '@/services/timesheet/cache';
 
 interface TimesheetScreenProps {
   orgSlug: string;
   page?: string;
+  limit?: string;
   status?: string;
   sort?: string;
   startDate?: string;
@@ -16,6 +17,7 @@ interface TimesheetScreenProps {
 const TimesheetScreen = async ({
   orgSlug,
   page = '1',
+  limit,
   status,
   sort,
   startDate,
@@ -25,13 +27,17 @@ const TimesheetScreen = async ({
   const tenant = await requireTenant(orgSlug);
 
   const parsedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const parsedLimit = Math.min(
+    TIMESHEET_LIST_MAX_LIMIT,
+    Math.max(1, Number.parseInt(limit ?? '', 10) || TIMESHEET_LIST_DEFAULT_LIMIT),
+  );
 
   const [result, statusItems] = await Promise.all([
     getTimesheetListCached({
       orgSlug,
       orgId: tenant.orgId,
       page: parsedPage,
-      limit: TIMESHEET_LIST_DEFAULT_LIMIT,
+      limit: parsedLimit,
       status,
       sort,
       order,
