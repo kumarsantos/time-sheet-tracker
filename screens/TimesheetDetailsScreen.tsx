@@ -7,11 +7,11 @@ interface TimesheetDetailsScreenProps {
 }
 
 const TimesheetDetailsScreen = async ({ orgSlug, id }: TimesheetDetailsScreenProps) => {
-  const { data: timesheetData } = await timesheetService.getTimesheetsDetails(orgSlug, id);
+  const { data } = await timesheetService.getTimesheetsDetails(orgSlug, id);
 
   return (
     <div className="min-h-screen p-6 px-32">
-      <TimesheetDetailView data={timesheetData} />
+      <TimesheetDetailView orgSlug={orgSlug} data={data} />
     </div>
   );
 };
