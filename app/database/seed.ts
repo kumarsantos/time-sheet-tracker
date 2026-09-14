@@ -70,6 +70,28 @@ const pick = <T>(rng: () => number, list: readonly T[]): T =>
 const between = (rng: () => number, min: number, max: number) =>
   Math.floor(rng() * (max - min + 1)) + min;
 
+const toISODate = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Monday (0) .. Sunday (6) index for the given local date
+const getLocalMondayIndex = (date: Date) => (date.getDay() + 6) % 7;
+
+// ISO-8601 week number for a given date
+const getISOWeek = (date: Date): number => {
+  const utc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const target = new Date(utc);
+  const dayNum = (target.getUTCDay() + 6) % 7; // Monday=0
+  target.setUTCDate(target.getUTCDate() - dayNum + 3); // nearest Thursday
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const diff =
+    ((target.getTime() - firstThursday.getTime()) / 86400000 + firstThursday.getUTCDay() + 1) / 7;
+  return Math.ceil(diff);
+};
+
 async function wipe() {
   await db.delete(works);
   await db.delete(timeEntries);
@@ -156,26 +178,34 @@ async function main(): Promise<void> {
     }
   }
 
-  /* 5. Timesheets + time entries across recent weeks */
+  /* 5. Timesheets + time entries across recent full weeks (Mon → Sun) */
   const projectPool = projectIds.filter((p) => p.orgId === org1!.id);
   const entryPool = ENTRY_NOTES;
 
+  // Anchor the most recent timesheet to the start (Monday) of the current week,
+  // then walk backwards one full week at a time.
+  const currentWeekStart = new Date(now);
+  currentWeekStart.setDate(now.getDate() - getLocalMondayIndex(now));
+  currentWeekStart.setHours(0, 0, 0, 0);
+
   for (let w = 0; w < 20; w++) {
-    const start = new Date(now);
-    start.setDate(start.getDate() - w * 7 - 6);
+    const start = new Date(currentWeekStart);
+    start.setDate(currentWeekStart.getDate() - w * 7);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
 
-    const startDateStr = start.toISOString().slice(0, 10);
-    const endDateStr = end.toISOString().slice(0, 10);
+    const startDateStr = toISODate(start);
+    const endDateStr = toISODate(end);
+    const weekNumber = getISOWeek(start);
+    const year = start.getFullYear();
 
     const [ts] = await db
       .insert(timesheets)
       .values({
         orgId: org1!.id,
         userId: demoUser.id,
-        weekNumber: w + 1,
-        year: now.getFullYear(),
+        weekNumber,
+        year,
         startDate: startDateStr,
         endDate: endDateStr,
         status: w === 4 ? 'SUBMITTED' : 'COMPLETED',
@@ -187,14 +217,12 @@ async function main(): Promise<void> {
     if (!ts) continue;
 
     let totalLogged = 0;
-    const DAY_MS = 86400000;
-    const sweepStartMs = new Date(startDateStr + 'T00:00:00.000Z').getTime();
-    const sweepEndMs = new Date(endDateStr + 'T00:00:00.000Z').getTime();
 
     // Iterate day by day from startDate to endDate inclusive and auto-create a
     // day entry per date; works are attached to each day entry afterwards.
-    for (let dayMs = sweepStartMs; dayMs <= sweepEndMs; dayMs += DAY_MS) {
-      const entryDate = new Date(dayMs).toISOString().slice(0, 10);
+    const cursor = new Date(start);
+    while (toISODate(cursor) <= endDateStr) {
+      const entryDate = toISODate(cursor);
       const hoursLogged = between(rng, 6, 8); // Generates between 6 and 8 hours daily
       const formattedHours = hoursLogged.toFixed(2);
 
@@ -219,6 +247,8 @@ async function main(): Promise<void> {
           hours: formattedHours,
         });
       }
+
+      cursor.setDate(cursor.getDate() + 1);
     }
 
     // Update parent timesheet total logged hours
