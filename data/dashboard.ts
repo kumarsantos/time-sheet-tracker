@@ -16,15 +16,19 @@ export const statusValues: StatusValue[] = [
     value: 'all',
   },
   {
-    label: 'Pending',
-    value: 'pending',
-  },
-  {
     label: 'Completed',
     value: 'completed',
   },
   {
-    label: 'Failed',
-    value: 'failed',
+    label: 'Missing',
+    value: 'missing',
+  },
+  {
+    label: 'Submitted',
+    value: 'submitted',
+  },
+  {
+    label: 'Rejected',
+    value: 'rejected',
   },
 ];

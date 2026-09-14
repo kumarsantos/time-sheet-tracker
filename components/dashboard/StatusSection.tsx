@@ -32,7 +32,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
   onDateRangeChange,
   onStatusChange,
   dateRange: clientDateRange,
-  statusValue: clientStatusValue,
+  statusValue: clientStatusValue = 'all',
   dateQueryKeyStart = 'startDate',
   dateQueryKeyEnd = 'endDate',
   statusQueryKey = 'status',
@@ -108,13 +108,15 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
         <StatusFilter
           multiple={false}
           items={statusItems}
-          value={typeof statusValue === 'string' ? statusValue : statusValue?.[0] || ''}
+          value={
+            typeof clientStatusValue === 'string' ? clientStatusValue : clientStatusValue?.[0] || ''
+          }
           onValueChange={(val) => {
             if (onStatusChange) {
               onStatusChange(val);
               return;
             }
-            setQueryParams({ [statusQueryKey]: val || null });
+            setQueryParams({ [statusQueryKey]: val === 'all' ? null : val });
           }}
           placeholder="Status"
           className="w-auto min-w-48"

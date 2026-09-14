@@ -32,7 +32,12 @@ const DashboardScreen = async ({
 
   return (
     <div className="flex min-h-screen flex-col gap-4 p-6 px-32">
-      <TimesheetListContainer statusItems={statusItems} timesheets={data} meta={meta} />
+      <TimesheetListContainer
+        statusItems={statusItems}
+        timesheets={data}
+        meta={meta}
+        statusValue={status}
+      />
       <div className="mx-auto flex w-full items-center justify-center rounded-lg bg-white py-6 shadow">
         <p className="text-sm text-gray-500">© 2024 tentwenty. All rights reserved.</p>
       </div>
