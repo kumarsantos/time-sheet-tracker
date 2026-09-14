@@ -5,6 +5,7 @@ import {
   isError,
   parseBoundedInt,
   requireOrgAccess,
+  requireRateLimit,
   requireUser,
 } from '@/lib/api/route-helpers';
 import { getTimesheetList, type TimesheetListResult } from '@/services/timesheet/data';
@@ -14,7 +15,7 @@ import {
   TIMESHEET_LIST_DEFAULT_LIMIT,
   TIMESHEET_LIST_MAX_LIMIT,
 } from '@/lib/constants';
-import { db } from '@/app/database';
+import { withTransaction } from '@/app/database';
 import { timeEntries, timesheets } from '@/app/database/schema';
 
 interface TimesheetListQuery {
@@ -105,6 +106,9 @@ export async function POST(request: Request) {
     const user = await requireUser();
     if (isError(user)) return user;
 
+    const rateLimited = requireRateLimit(`mutations:${user.userId}`);
+    if (isError(rateLimited)) return rateLimited;
+
     let body: CreateTimesheetsBody;
     try {
       body = (await request.json()) as CreateTimesheetsBody;
@@ -136,44 +140,50 @@ export async function POST(request: Request) {
     // does not override it (org.defaultTargetHours is DB-backed).
     const targetHoursValue = targetHours ? targetHours.toFixed(2) : org.defaultTargetHours;
 
-    const [created] = await db
-      .insert(timesheets)
-      .values({
-        orgId: org.orgId,
-        userId: user.userId,
-        weekNumber,
-        year,
-        startDate,
-        endDate,
-        targetHours: targetHoursValue,
-        status: 'MISSING',
-      })
-      .returning();
-
-    if (!created) {
-      return apiError('Failed to create timesheet', 500);
-    }
-
-    // Auto-generate one day entry per day in the week range (inclusive)
-    const entryDates: string[] = [];
-    const DAY_MS = 86400000;
-    // Parse dates at UTC noon to avoid DST day-boundary drift
-    const sweepStartMs = new Date(`${startDate}T12:00:00.000Z`).getTime();
-    const sweepEndMs = new Date(`${endDate}T12:00:00.000Z`).getTime();
-    for (let dayMs = sweepStartMs; dayMs <= sweepEndMs; dayMs += DAY_MS) {
-      entryDates.push(new Date(dayMs).toISOString().slice(0, 10));
-    }
-
-    const dayEntries = await db
-      .insert(timeEntries)
-      .values(
-        entryDates.map((entryDate) => ({
-          timesheetId: created.id,
+    // Create the timesheet and all its day entries in one atomic unit so the
+    // entry rows can never be orphaned by a partial failure.
+    const { timesheet, dayEntries } = await withTransaction(async (tx) => {
+      const [created] = await tx
+        .insert(timesheets)
+        .values({
+          orgId: org.orgId,
           userId: user.userId,
-          entryDate,
-        })),
-      )
-      .returning();
+          weekNumber,
+          year,
+          startDate,
+          endDate,
+          targetHours: targetHoursValue,
+          status: 'MISSING',
+        })
+        .returning();
+
+      if (!created) {
+        throw new Error('Failed to create timesheet');
+      }
+
+      // Auto-generate one day entry per day in the week range (inclusive)
+      const entryDates: string[] = [];
+      const DAY_MS = 86400000;
+      // Parse dates at UTC noon to avoid DST day-boundary drift
+      const sweepStartMs = new Date(`${startDate}T12:00:00.000Z`).getTime();
+      const sweepEndMs = new Date(`${endDate}T12:00:00.000Z`).getTime();
+      for (let dayMs = sweepStartMs; dayMs <= sweepEndMs; dayMs += DAY_MS) {
+        entryDates.push(new Date(dayMs).toISOString().slice(0, 10));
+      }
+
+      const dayEntries = await tx
+        .insert(timeEntries)
+        .values(
+          entryDates.map((entryDate) => ({
+            timesheetId: created.id,
+            userId: user.userId,
+            entryDate,
+          })),
+        )
+        .returning();
+
+      return { timesheet: created, dayEntries };
+    });
 
     // ISR: new timesheet changes the list immediately
     revalidateTimesheetData(orgSlug);
@@ -181,7 +191,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         data: {
-          ...created,
+          ...timesheet,
           entries: dayEntries.map((entry) => ({
             ...entry,
             works: [],

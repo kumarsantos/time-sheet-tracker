@@ -7,7 +7,10 @@ const dbMock = vi.hoisted(() => ({
 
 vi.mock('@/app/database', () => ({ db: dbMock }));
 
+import type { DrizzleDB } from '@/app/database';
 import { deriveTimesheetStatus, refreshTimesheetSummary } from '@/lib/timesheet-summary';
+
+const dbExecutor = dbMock as unknown as DrizzleDB;
 
 /** Builds the { select().from().innerJoin().where() } promise chain for the mocked db. */
 function mockSelectResult(rows: Array<{ total: string | null }>) {
@@ -51,7 +54,7 @@ describe('refreshTimesheetSummary', () => {
   it('persists the derived total and status for a completed week', async () => {
     mockSelectResult([{ total: '42.00' }]);
 
-    const summary = await refreshTimesheetSummary('ts-1', '40');
+    const summary = await refreshTimesheetSummary(dbExecutor, 'ts-1', '40');
 
     expect(summary).toEqual({ totalHoursLogged: '42.00', status: 'COMPLETED' });
     expect(dbMock.update).toHaveBeenCalledWith(expect.anything());
@@ -60,7 +63,7 @@ describe('refreshTimesheetSummary', () => {
   it('treats a nullable total as zero and persists INCOMPLETE', async () => {
     mockSelectResult([{ total: null }]);
 
-    const summary = await refreshTimesheetSummary('ts-1', '40');
+    const summary = await refreshTimesheetSummary(dbExecutor, 'ts-1', '40');
 
     expect(summary).toEqual({ totalHoursLogged: '0.00', status: 'INCOMPLETE' });
   });

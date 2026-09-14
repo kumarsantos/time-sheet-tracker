@@ -1,5 +1,5 @@
 import { eq, sum } from 'drizzle-orm';
-import { db } from '@/app/database';
+import type { DrizzleDB } from '@/app/database';
 import { timeEntries, timesheets, works } from '@/app/database/schema';
 import type { TimesheetStatus } from '@/types/timesheets';
 
@@ -26,12 +26,15 @@ export function deriveTimesheetStatus(
  * persists both, and returns them so callers can echo the values back.
  *
  * Used by the add / edit / delete work endpoints so all three stay in sync.
+ * Accepts an executor (either `db` or a transaction) so the summary write can
+ * participate in the same atomic unit as its triggering mutation.
  */
 export async function refreshTimesheetSummary(
+  executor: DrizzleDB,
   timesheetId: string,
   targetHours: string,
 ): Promise<TimesheetSummary> {
-  const [totalRow] = await db
+  const [totalRow] = await executor
     .select({ total: sum(works.hours) })
     .from(works)
     .innerJoin(timeEntries, eq(works.timeEntryId, timeEntries.id))
@@ -40,7 +43,7 @@ export async function refreshTimesheetSummary(
   const totalHoursLogged = totalRow?.total ?? '0.00';
   const status = deriveTimesheetStatus(totalHoursLogged, targetHours);
 
-  await db
+  await executor
     .update(timesheets)
     .set({ totalHoursLogged, status })
     .where(eq(timesheets.id, timesheetId));

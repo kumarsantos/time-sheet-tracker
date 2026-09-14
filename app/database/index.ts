@@ -12,6 +12,25 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 export type DrizzleDB = NodePgDatabase<typeof schema> | NeonHttpDatabase<typeof schema>;
 
+// Active driver — matters because the neon-http driver cannot start transactions.
+export const dbDriver: 'node-postgres' | 'neon-http' = isProduction ? 'neon-http' : 'node-postgres';
+
+/**
+ * Runs `run` inside a transaction so multi-statement writes stay atomic.
+ *
+ * The local node-postgres pool supports real `db.transaction`; Neon's HTTP
+ * driver does not (drizzle throws at runtime), so there we fall back to
+ * executing sequentially against `db`.
+ */
+export async function withTransaction<T>(run: (tx: DrizzleDB) => Promise<T>): Promise<T> {
+  if (dbDriver === 'neon-http') {
+    return run(db);
+  }
+  return (db as NodePgDatabase<typeof schema>).transaction(async (tx) =>
+    run(tx as unknown as DrizzleDB),
+  );
+}
+
 // Correct global augmentation syntax for standard modules
 declare global {
   var __pgPool__: PgPool | undefined;

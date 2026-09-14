@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
+import { checkRateLimit, type RateLimitOptions } from '@/lib/rate-limit';
 import { db } from '@/app/database';
 import {
   organizations,
@@ -31,6 +32,23 @@ export function parseBoundedInt(val: string | null, fallback: number, max = Infi
   const parsed = parseInt(val, 10);
   if (Number.isNaN(parsed) || parsed < 1) return fallback;
   return Math.min(parsed, max);
+}
+
+/**
+ * Bulletproofing for mutating endpoints: returns a 429 JSON response when the
+ * caller has exceeded the window budget, otherwise `true`. Key on the
+ * authenticated user id (not the raw IP) so keys can't be trivially rotated.
+ */
+export function requireRateLimit(key: string, opts?: RateLimitOptions): GuardResult<true> {
+  const result = checkRateLimit(key, opts);
+  if (!result.ok) {
+    const response = NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(result.retryAfterSeconds) } },
+    );
+    return response;
+  }
+  return true;
 }
 
 /** Shared auth guard: returns the session user id or a 401 JSON response. */

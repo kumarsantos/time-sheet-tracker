@@ -14,8 +14,10 @@ import {
   parseBoundedInt,
   readJsonBody,
   requireOrgAccess,
+  requireRateLimit,
   requireUser,
 } from '@/lib/api/route-helpers';
+import { clearRateLimitBuckets } from '@/lib/rate-limit';
 
 describe('parseBoundedInt', () => {
   it('uses the fallback for missing/invalid values', () => {
@@ -36,6 +38,28 @@ describe('apiError', () => {
     const res = apiError('Nope', 403);
     expect(isError(res)).toBe(true);
     expect(res.status).toBe(403);
+  });
+});
+
+describe('requireRateLimit', () => {
+  beforeEach(() => {
+    clearRateLimitBuckets();
+  });
+
+  it('passes through while the caller is inside its budget', () => {
+    const result = requireRateLimit('test-user', { limit: 2, windowMs: 60_000 });
+    expect(isError(result)).toBe(false);
+    expect(result).toBe(true);
+  });
+
+  it('returns 429 with a Retry-After header once the budget is exhausted', () => {
+    requireRateLimit('test-user', { limit: 1, windowMs: 60_000 });
+    const response = requireRateLimit('test-user', { limit: 1, windowMs: 60_000 });
+    expect(isError(response)).toBe(true);
+    if (isError(response)) {
+      expect(response.status).toBe(429);
+      expect(response.headers.get('Retry-After')).toBeTruthy();
+    }
   });
 });
 

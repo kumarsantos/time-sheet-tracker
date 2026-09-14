@@ -5,6 +5,7 @@ import {
   handleRoute,
   isError,
   readJsonBody,
+  requireRateLimit,
   requireUser,
   resolveOrgProject,
   resolveTargets,
@@ -13,7 +14,7 @@ import { refreshTimesheetSummary } from '@/lib/timesheet-summary';
 import { addWorkApiSchema } from '@/lib/validations/timesheet';
 import { toWorkItem } from '@/services/timesheet/data';
 import { revalidateTimesheetData } from '@/services/timesheet/cache';
-import { db } from '@/app/database';
+import { withTransaction } from '@/app/database';
 import { works } from '@/app/database/schema';
 import type { AddWorkResponse, DeleteWorkResponse } from '@/types/timesheet-details';
 
@@ -25,6 +26,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
   return handleRoute('Error updating work:', async () => {
     const user = await requireUser();
     if (isError(user)) return user;
+
+    const rateLimited = requireRateLimit(`mutations:${user.userId}`);
+    if (isError(rateLimited)) return rateLimited;
 
     const { timesheetId, entryId, workId } = await params;
     if (!timesheetId || !entryId || !workId) {
@@ -43,32 +47,38 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const project = await resolveOrgProject(targets.orgId, payload.projectId);
     if (isError(project)) return project;
 
-    const [updatedWork] = await db
-      .update(works)
-      .set({
-        projectId: project.id,
-        typeOfWork: payload.typeOfWork.trim(),
-        description: payload.description.trim(),
-        hours: payload.hours.toFixed(2),
-      })
-      .where(eq(works.id, targets.work.id))
-      .returning();
+    // Update the work row and the recomputed summary in one atomic unit.
+    const { work, totalHoursLogged, status } = await withTransaction(async (tx) => {
+      const [updatedWork] = await tx
+        .update(works)
+        .set({
+          projectId: project.id,
+          typeOfWork: payload.typeOfWork.trim(),
+          description: payload.description.trim(),
+          hours: payload.hours.toFixed(2),
+        })
+        .where(eq(works.id, targets.work.id))
+        .returning();
 
-    if (!updatedWork) {
+      const summary = await refreshTimesheetSummary(
+        tx,
+        targets.timesheet.id,
+        targets.timesheet.targetHours,
+      );
+
+      return { work: updatedWork, ...summary };
+    });
+
+    if (!work) {
       return apiError('Failed to update work', 500);
     }
-
-    const { totalHoursLogged, status } = await refreshTimesheetSummary(
-      targets.timesheet.id,
-      targets.timesheet.targetHours,
-    );
 
     // ISR: totals/status changed → refresh this details page and the org list
     // (orgSlug is non-null here — a missing one already short-circuited in resolveTargets)
     revalidateTimesheetData(orgSlug ?? '', timesheetId);
 
     const responsePayload: AddWorkResponse = {
-      data: toWorkItem(updatedWork, project.name),
+      data: toWorkItem(work, project.name),
       totalHoursLogged,
       status,
     };
@@ -82,6 +92,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const user = await requireUser();
     if (isError(user)) return user;
 
+    const rateLimited = requireRateLimit(`mutations:${user.userId}`);
+    if (isError(rateLimited)) return rateLimited;
+
     const { timesheetId, entryId, workId } = await params;
     if (!timesheetId || !entryId || !workId) {
       return apiError('timesheetId, entryId and workId are required', 400);
@@ -93,13 +106,13 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const targets = await resolveTargets(user.user, orgSlug ?? '', timesheetId, entryId, workId);
     if (isError(targets)) return targets;
 
-    await db.delete(works).where(eq(works.id, targets.work.id));
+    // Delete the work row and recompute the summary in one atomic unit so a
+    // failure can't leave totals/status describing a work that still exists.
+    const { totalHoursLogged, status } = await withTransaction(async (tx) => {
+      await tx.delete(works).where(eq(works.id, targets.work.id));
 
-    // Deletion changes the totals — recompute totalHoursLogged + derive status
-    const { totalHoursLogged, status } = await refreshTimesheetSummary(
-      targets.timesheet.id,
-      targets.timesheet.targetHours,
-    );
+      return refreshTimesheetSummary(tx, targets.timesheet.id, targets.timesheet.targetHours);
+    });
 
     // ISR: totals/status changed → refresh this details page and the org list
     // (orgSlug is non-null here — a missing one already short-circuited in resolveTargets)
