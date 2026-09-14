@@ -59,7 +59,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
   const statusValue = React.useMemo(() => {
     if (!isServerModeStatus) return clientStatusValue;
 
-    const rawParam = getParam(statusQueryKey) || '';
+    const rawParam = getParam(statusQueryKey) || multipleStatus ? '' : 'all';
     if (multipleStatus) {
       return rawParam ? rawParam.split(',') : [];
     }
@@ -92,7 +92,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
       {multipleStatus ? (
         <StatusFilter
           multiple
-          items={statusItems}
+          items={statusItems.filter((item) => item.value !== 'all')}
           value={Array.isArray(statusValue) ? statusValue : statusValue ? [statusValue] : []}
           onValueChange={(val) => {
             if (onStatusChange) {
