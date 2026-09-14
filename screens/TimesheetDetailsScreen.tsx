@@ -22,7 +22,7 @@ const TimesheetDetailsScreen = async ({ orgSlug, id }: TimesheetDetailsScreenPro
   }
 
   return (
-    <div className="min-h-screen p-6 px-32">
+    <div className="p-6 px-32">
       <TimesheetDetailView orgSlug={orgSlug} data={data} />
     </div>
   );

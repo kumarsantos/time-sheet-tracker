@@ -3,7 +3,7 @@ const SKELETON_WORKS = Array.from({ length: 2 }, (_, i) => i);
 
 const TimesheetDetailsSkeleton = () => {
   return (
-    <div className="min-h-screen p-6 px-32">
+    <div className="p-6 px-32">
       <div className="mx-auto w-full max-w-7xl rounded-lg border border-gray-100 bg-white p-8 shadow-sm">
         {/* Header */}
         <div className="flex justify-between gap-4 sm:flex-row sm:items-center">
