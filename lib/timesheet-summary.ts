@@ -9,6 +9,18 @@ export interface TimesheetSummary {
 }
 
 /**
+ * Pure status derivation shared by the summary writer and the seed: COMPLETED
+ * when the weekly total is at/above the target, otherwise INCOMPLETE.
+ */
+export function deriveTimesheetStatus(
+  totalHoursLogged: string | number,
+  targetHours: string | number,
+): TimesheetStatus {
+  const target = Number(targetHours) || 40;
+  return Number(totalHoursLogged) >= target ? 'COMPLETED' : 'INCOMPLETE';
+}
+
+/**
  * Recomputes a timesheet's totals from every work across all its day entries,
  * derives the status (INCOMPLETE when < target hours, COMPLETED otherwise),
  * persists both, and returns them so callers can echo the values back.
@@ -26,9 +38,7 @@ export async function refreshTimesheetSummary(
     .where(eq(timeEntries.timesheetId, timesheetId));
 
   const totalHoursLogged = totalRow?.total ?? '0.00';
-
-  const target = Number(targetHours) || 40;
-  const status: TimesheetStatus = Number(totalHoursLogged) >= target ? 'COMPLETED' : 'INCOMPLETE';
+  const status = deriveTimesheetStatus(totalHoursLogged, targetHours);
 
   await db
     .update(timesheets)
