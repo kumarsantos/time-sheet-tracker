@@ -151,11 +151,14 @@ async function main(): Promise<void> {
   const projectPool = projectIds.filter((p) => p.orgId === org1!.id);
   const entryPool = ENTRY_NOTES;
 
-  for (let w = 0; w < 6; w++) {
+  for (let w = 0; w < 20; w++) {
     const start = new Date(now);
     start.setDate(start.getDate() - w * 7 - 6);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
+
+    const startDateStr = start.toISOString().slice(0, 10);
+    const endDateStr = end.toISOString().slice(0, 10);
 
     const [ts] = await db
       .insert(timesheets)
@@ -164,31 +167,41 @@ async function main(): Promise<void> {
         userId: demoUser.id,
         weekNumber: w + 1,
         year: now.getFullYear(),
-        startDate: start.toISOString().slice(0, 10),
-        endDate: end.toISOString().slice(0, 10),
+        startDate: startDateStr,
+        endDate: endDateStr,
         status: w === 4 ? 'SUBMITTED' : 'COMPLETED',
         targetHours: '40.00',
-        totalHoursLogged: '40.00',
+        totalHoursLogged: '0.00',
       })
       .returning({ id: timesheets.id });
 
     if (!ts) continue;
 
     let totalLogged = 0;
-    for (let e = 0; e < between(rng, 4, 6); e++) {
-      const hours = Number((rng() * 4 + 1).toFixed(2));
-      totalLogged += hours;
+    const DAY_MS = 86400000;
+    const sweepStartMs = new Date(startDateStr + 'T00:00:00.000Z').getTime();
+    const sweepEndMs = new Date(endDateStr + 'T00:00:00.000Z').getTime();
+
+    // Iterate day by day from startDate to endDate inclusive
+    for (let dayMs = sweepStartMs; dayMs <= sweepEndMs; dayMs += DAY_MS) {
+      const entryDate = new Date(dayMs).toISOString().slice(0, 10);
+      const hoursLogged = between(rng, 6, 8); // Generates between 6 and 8 hours daily
+      const formattedHours = hoursLogged.toFixed(2);
+
+      totalLogged += hoursLogged;
+
       await db.insert(timeEntries).values({
         timesheetId: ts.id,
         userId: demoUser.id,
         projectId: pick(rng, projectPool)!.id,
         typeOfWork: pick(rng, WORK_TYPE_VALUES),
         description: pick(rng, entryPool),
-        hours: hours.toFixed(2),
-        entryDate: new Date(start.getTime() + e * 86400000).toISOString().slice(0, 10),
+        hours: formattedHours,
+        entryDate,
       });
     }
 
+    // Update parent timesheet total logged hours
     await db
       .update(timesheets)
       .set({ totalHoursLogged: totalLogged.toFixed(2) })
