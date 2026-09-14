@@ -16,3 +16,19 @@ export const parseWeekStart = (value: string): Date => {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? new Date(0) : new Date(parsed);
 };
+
+// Helpers for Date Formatting
+export const formatDateHeader = (isoDateStr: string) => {
+  const date = new Date(isoDateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+export const formatRangeSubheader = (startDateStr: string, endDateStr: string, year: number) => {
+  const start = new Date(startDateStr + 'T00:00:00');
+  const end = new Date(endDateStr + 'T00:00:00');
+
+  const startFormatted = start.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  const endFormatted = end.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+
+  return `${startFormatted} - ${endFormatted}, ${year}`;
+};
