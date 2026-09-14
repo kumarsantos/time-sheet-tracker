@@ -2,12 +2,12 @@ import { Suspense } from 'react';
 import DashboardScreen from '@/screens/DashboardScreen';
 
 interface PageProps {
-  params: Promise<{ orgId: string }>;
+  params: Promise<{ orgSlug: string }>;
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }
 
 const Dashboard = async ({ params, searchParams }: PageProps) => {
-  const { orgId } = await params;
+  const { orgSlug } = await params;
   const { page, status, sort, order, startDate, endDate } = await searchParams;
   return (
     <Suspense
@@ -20,7 +20,7 @@ const Dashboard = async ({ params, searchParams }: PageProps) => {
       }
     >
       <DashboardScreen
-        orgId={orgId}
+        orgSlug={orgSlug}
         page={page}
         status={status}
         sort={sort}

@@ -2,7 +2,7 @@ import TimesheetListContainer from '@/components/dashboard/TimesheetListContaine
 import { timesheetService } from '@/services/timesheet';
 
 const DashboardScreen = async ({
-  orgId,
+  orgSlug,
   page = '1',
   status,
   sort,
@@ -10,7 +10,7 @@ const DashboardScreen = async ({
   endDate,
   order = 'asc',
 }: {
-  orgId: string;
+  orgSlug: string;
   page?: string;
   status?: string;
   sort?: string;
@@ -19,7 +19,7 @@ const DashboardScreen = async ({
   order?: 'asc' | 'desc';
 }) => {
   const { data, meta } = await timesheetService.getTimesheets({
-    orgId,
+    orgSlug,
     page,
     status,
     sort,
@@ -28,7 +28,7 @@ const DashboardScreen = async ({
     endDate,
   });
 
-  const { data: statusItems } = await timesheetService.getTimesheetStatusItems(orgId);
+  const { data: statusItems } = await timesheetService.getTimesheetStatusItems(orgSlug);
 
   return (
     <div className="flex min-h-screen flex-col gap-4 p-6 px-32">

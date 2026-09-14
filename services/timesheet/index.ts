@@ -2,7 +2,7 @@ import type { TimesheetStatus } from '@/types/dashboard';
 import { apiClient } from '../api';
 
 export interface TimesheetQueryParams {
-  orgId: string;
+  orgSlug: string;
   startDate?: string;
   endDate?: string;
   status?: string;
@@ -41,6 +41,6 @@ export const timesheetService = {
     apiClient.get<TimesheetResponse>('/timesheets', params),
 
   // GET /api/timesheets/status-items?orgId=amz-cmp
-  getTimesheetStatusItems: (orgId: string) =>
-    apiClient.get<StatusResponse>('/timesheets/status-items', { orgId }),
+  getTimesheetStatusItems: (orgSlug: string) =>
+    apiClient.get<StatusResponse>('/timesheets/status-items', { orgSlug }),
 };
