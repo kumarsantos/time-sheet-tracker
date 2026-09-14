@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import DashboardScreen from '@/screens/DashboardScreen';
+import TimesheetScreen from '@/screens/TimesheetScreen';
 
 interface PageProps {
   params: Promise<{ orgSlug: string }>;
@@ -28,7 +28,7 @@ export default async function TimesheetsPage({ params, searchParams }: PageProps
         </div>
       }
     >
-      <DashboardScreen
+      <TimesheetScreen
         orgSlug={orgSlug}
         page={page}
         status={status}

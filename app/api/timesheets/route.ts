@@ -3,9 +3,14 @@ import { auth } from '@/auth';
 import { and, eq, asc, desc, count, gte, lte } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { formatWeekRangeLabel } from '@/lib/helpers/date-time';
-import { timesheets, orgMemberships, timesheetStatusEnum } from '@/app/database/schema';
+import {
+  timesheets,
+  timeEntries,
+  orgMemberships,
+  timesheetStatusEnum,
+} from '@/app/database/schema';
 import { db } from '@/app/database';
-import type { TimesheetStatus } from '@/types/dashboard';
+import type { TimesheetStatus } from '@/types/timesheets';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_LIMIT = 100;
@@ -159,6 +164,135 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     logger.error('Error fetching timesheets:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+/* ==========================================================================
+   POST /api/timesheets  —  Create a week timesheet
+   Day entries (time_entries) are auto-generated server-side, one per day in
+   [startDate, endDate], so the UI never has to create date rows itself.
+   ========================================================================== */
+
+interface CreateTimesheetsBody {
+  orgSlug: string;
+  year: number;
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  targetHours?: number;
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = session.user.id;
+
+    let body: CreateTimesheetsBody;
+    try {
+      body = (await request.json()) as CreateTimesheetsBody;
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+
+    const { orgSlug, year, weekNumber, startDate, endDate, targetHours } = body;
+
+    if (!orgSlug) {
+      return NextResponse.json({ error: 'orgSlug is required' }, { status: 400 });
+    }
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(weekNumber) ||
+      weekNumber < 1 ||
+      weekNumber > 53
+    ) {
+      return NextResponse.json({ error: 'Invalid year or weekNumber' }, { status: 400 });
+    }
+    if (!ISO_DATE_RE.test(startDate) || !ISO_DATE_RE.test(endDate)) {
+      return NextResponse.json(
+        { error: 'startDate and endDate must be formatted as YYYY-MM-DD' },
+        { status: 400 },
+      );
+    }
+    if (startDate > endDate) {
+      return NextResponse.json({ error: 'startDate must not be after endDate' }, { status: 400 });
+    }
+
+    const sessionOrg = session.user.orgs?.find((org) => org.slug === orgSlug);
+    if (!sessionOrg) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const targetOrgId = sessionOrg.orgId;
+
+    const [membership] = await db
+      .select({ id: orgMemberships.id })
+      .from(orgMemberships)
+      .where(and(eq(orgMemberships.orgId, targetOrgId), eq(orgMemberships.userId, userId)))
+      .limit(1);
+    if (!membership) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const targetHoursValue = targetHours ? targetHours.toFixed(2) : '40.00';
+
+    const [created] = await db
+      .insert(timesheets)
+      .values({
+        orgId: targetOrgId,
+        userId,
+        weekNumber,
+        year,
+        startDate,
+        endDate,
+        targetHours: targetHoursValue,
+        status: 'MISSING',
+      })
+      .returning();
+
+    if (!created) {
+      return NextResponse.json({ error: 'Failed to create timesheet' }, { status: 500 });
+    }
+
+    // Auto-generate one day entry per day in the week range (inclusive)
+    const entryDates: string[] = [];
+    const DAY_MS = 86400000;
+    // Parse dates at UTC noon to avoid DST day-boundary drift
+    const sweepStartMs = new Date(`${startDate}T12:00:00.000Z`).getTime();
+    const sweepEndMs = new Date(`${endDate}T12:00:00.000Z`).getTime();
+    for (let dayMs = sweepStartMs; dayMs <= sweepEndMs; dayMs += DAY_MS) {
+      entryDates.push(new Date(dayMs).toISOString().slice(0, 10));
+    }
+
+    const dayEntries = await db
+      .insert(timeEntries)
+      .values(
+        entryDates.map((entryDate) => ({
+          timesheetId: created.id,
+          userId,
+          entryDate,
+        })),
+      )
+      .returning();
+
+    return NextResponse.json(
+      {
+        data: {
+          ...created,
+          entries: dayEntries.map((entry) => ({
+            ...entry,
+            works: [],
+            createdAt: entry.createdAt.toISOString(),
+            updatedAt: entry.updatedAt.toISOString(),
+          })),
+        },
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    logger.error('Error creating timesheet:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

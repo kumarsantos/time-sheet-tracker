@@ -1,38 +1,14 @@
-import type { TimesheetStatus } from '@/types/dashboard';
+import type { StatusResponse, TimesheetQueryParams, TimesheetResponse } from '@/types/timesheets';
 import { apiClient } from '../api';
+import type { TimesheetDetailsResponse } from '@/types/timesheet-details';
 
-export interface TimesheetQueryParams {
+export interface CreateTimesheetParams {
   orgSlug: string;
-  startDate?: string;
-  endDate?: string;
-  status?: string;
-  sort?: string;
-  order?: 'asc' | 'desc';
-  page?: string;
-  limit?: number;
-}
-
-export interface TimesheetResponse {
-  data: Array<{
-    id: string;
-    date: string;
-    hours: number;
-    status: TimesheetStatus;
-    weekNum: number;
-  }>;
-  meta: {
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  };
-}
-export interface StatusResponse {
-  data: Array<{
-    id: string;
-    label: string;
-    value: string;
-  }>;
+  year: number;
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  targetHours?: number;
 }
 
 export const timesheetService = {
@@ -40,7 +16,16 @@ export const timesheetService = {
   getTimesheets: (params: TimesheetQueryParams) =>
     apiClient.get<TimesheetResponse>('/timesheets', params),
 
+  // POST /api/timesheets — creates the week timesheet and auto-generates one
+  // day entry (time_entries row) per day in [startDate, endDate]
+  createTimesheet: (payload: CreateTimesheetParams) =>
+    apiClient.post<TimesheetDetailsResponse>('/timesheets', payload),
+
   // GET /api/timesheets/status-items?orgId=amz-cmp
   getTimesheetStatusItems: (orgSlug: string) =>
     apiClient.get<StatusResponse>('/timesheets/status-items', { orgSlug }),
+
+  // GET /api/timesheets/timesheetId?orgId=amz-cmp
+  getTimesheetsDetails: (orgSlug: string, id: string) =>
+    apiClient.get<TimesheetDetailsResponse>('/timesheets/' + id, { orgSlug }),
 };

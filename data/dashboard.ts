@@ -1,4 +1,4 @@
-import type { TimesheetItem, StatusValue } from '@/types/dashboard';
+import type { TimesheetItem, StatusValue } from '@/types/timesheets';
 
 export const timeSheetsData: TimesheetItem[] = [
   { id: '1', weekNum: 1, date: '1 - 5 January, 2024', status: 'COMPLETED' },
