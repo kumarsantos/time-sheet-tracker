@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 
 const API_AUTH_PREFIX = '/api/auth';
+const API_PREFIX = '/api';
 
 export const proxy = auth((req) => {
   const { nextUrl } = req;
@@ -12,13 +13,23 @@ export const proxy = auth((req) => {
     return NextResponse.next();
   }
 
+  // 2. API routes speak JSON: unauthenticated callers get a 401 response
+  //    (never a page redirect — the route handlers would 401 anyway via
+  //    requireUser, so the proxy answers early and stays consistent).
+  if (nextUrl.pathname.startsWith(API_PREFIX)) {
+    if (!isLoggedIn) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
   const isRootRoute = nextUrl.pathname === '/';
 
   // Extract primary org slug from user session
   const orgSlug = req.auth?.user?.orgs?.[0]?.slug;
   const targetTimesheetUrl = orgSlug ? `/${orgSlug}/timesheets` : '/';
 
-  // 2. Handle Logged-In Users
+  // 3. Handle Logged-In Users
   if (isLoggedIn) {
     // Check if the user is hitting root '/', bare '/timesheets', or bare '/[orgSlug]'
     const isBareTimesheets = nextUrl.pathname === '/timesheets';
@@ -31,7 +42,7 @@ export const proxy = auth((req) => {
     return NextResponse.next();
   }
 
-  // 3. Handle Logged-Out (Unauthenticated) Users
+  // 4. Handle Logged-Out (Unauthenticated) Users
   // Block ALL routes except strictly '/' (the login page)
   if (!isRootRoute) {
     let callbackUrl = nextUrl.pathname;
