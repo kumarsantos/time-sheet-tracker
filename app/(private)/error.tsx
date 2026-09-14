@@ -1,31 +1,49 @@
 'use client';
 
-import { useEffect } from 'react';
-import Link from 'next/link';
+import { useEffect, useTransition } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 
 interface DashboardErrorProps {
   error: Error & { digest?: string };
   reset: () => void;
 }
 
-export default function DashboardError({ error, reset }: DashboardErrorProps) {
-  useEffect(() => {
-    // Log dashboard error to telemetry (Sentry, LogRocket, Datadog)
-    console.error('[Dashboard Error Boundary Caught]:', {
-      message: error.message,
-      digest: error.digest,
-      stack: error.stack,
-    });
-  }, [error]);
+export default function DashboardError({ error }: DashboardErrorProps) {
+  const router = useRouter();
+  const params = useParams();
+  const [isPending, startTransition] = useTransition();
+
+  const orgSlug = params?.orgSlug as string | undefined;
+  const targetDashboardUrl = orgSlug ? `/dashboard/${orgSlug}` : '/dashboard';
 
   const isAuthOrPermissionError =
     error.message.toLowerCase().includes('unauthorized') ||
     error.message.toLowerCase().includes('forbidden') ||
     error.message.toLowerCase().includes('permission');
 
+  useEffect(() => {
+    console.error('[Dashboard Boundary Error Captured]:', {
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack,
+    });
+
+    // Auto-redirect to the target dashboard route
+    router.replace(targetDashboardUrl);
+  }, [error, router, targetDashboardUrl]);
+
+  const handleRedirect = () => {
+    startTransition(() => {
+      router.replace(targetDashboardUrl);
+    });
+  };
+
   return (
-    <div className="border-border animate-in fade-in-50 flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-      <div className="mx-auto flex max-w-md flex-col items-center justify-center space-y-4">
+    <div
+      role="alert"
+      className="border-border animate-in fade-in-50 flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"
+    >
+      <div className="m-auto flex h-[75vh] max-w-md flex-col items-center justify-center space-y-4">
         {/* Warning Icon Container */}
         <div className="bg-destructive/10 text-destructive flex h-12 w-12 items-center justify-center rounded-full">
           <svg
@@ -52,33 +70,28 @@ export default function DashboardError({ error, reset }: DashboardErrorProps) {
           </h2>
           <p className="text-muted-foreground text-sm">
             {isAuthOrPermissionError
-              ? 'You do not have the required permissions to view this section.'
-              : 'We ran into a problem fetching your metrics. Other parts of your app remain accessible.'}
+              ? 'You do not have the required permissions to view this section. Redirecting to your organization dashboard...'
+              : 'We ran into a problem fetching your metrics. Redirecting to your organization dashboard...'}
           </p>
         </div>
 
         {/* Technical Reference Code */}
         {error.digest && (
           <div className="bg-muted/50 text-muted-foreground rounded px-2.5 py-1 font-mono text-xs">
-            Ref ID: {error.digest}
+            Ref ID: <span className="font-semibold select-all">{error.digest}</span>
           </div>
         )}
 
         {/* Dashboard Recovery Actions */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <button
-            onClick={() => reset()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            type="button"
+            disabled={isPending}
+            onClick={handleRedirect}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring inline-flex cursor-pointer items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-50"
           >
-            Refresh Dashboard
+            {isPending ? 'Redirecting...' : 'Return to Dashboard'}
           </button>
-
-          <Link
-            href="/dashboard"
-            className="border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium shadow-sm transition-colors"
-          >
-            Overview Page
-          </Link>
         </div>
       </div>
     </div>
