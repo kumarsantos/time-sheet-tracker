@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "default_target_hours" numeric(5, 2) DEFAULT '40.00' NOT NULL;

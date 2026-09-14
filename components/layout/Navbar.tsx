@@ -50,7 +50,7 @@ export function Navbar({ user }: NavbarProps) {
         {/* Left Side: Brand Logo & Navigation */}
         <div className="flex items-center space-x-8">
           <Link
-            href="/dashboard"
+            href="/"
             className="rounded-md text-xl font-bold tracking-tight text-gray-900 focus-visible:ring-2 focus-visible:ring-[#1D61E8] focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             ticktock

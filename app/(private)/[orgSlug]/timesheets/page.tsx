@@ -1,6 +1,12 @@
 import { Suspense } from 'react';
 import TimesheetScreen from '@/screens/TimesheetScreen';
 import TimesheetListSkeleton from '@/components/timesheets/TimesheetListSkeleton';
+import { constructMetadata } from '@/lib/seo';
+
+export const metadata = constructMetadata({
+  title: 'Your Timesheets',
+  description: 'View, filter and manage your weekly timesheets.',
+});
 
 interface PageProps {
   params: Promise<{ orgSlug: string }>;

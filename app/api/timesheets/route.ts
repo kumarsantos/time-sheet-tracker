@@ -1,171 +1,88 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { and, eq, asc, desc, count, gte, lte } from 'drizzle-orm';
-import { logger } from '@/lib/logger';
-import { formatWeekRangeLabel } from '@/lib/helpers/date-time';
 import {
-  timesheets,
-  timeEntries,
-  orgMemberships,
-  timesheetStatusEnum,
-} from '@/app/database/schema';
+  apiError,
+  handleRoute,
+  isError,
+  parseBoundedInt,
+  requireOrgAccess,
+  requireUser,
+} from '@/lib/api/route-helpers';
+import { getTimesheetList, type TimesheetListResult } from '@/services/timesheet/data';
+import { revalidateTimesheetData } from '@/services/timesheet/cache';
+import {
+  ISO_DATE_RE,
+  TIMESHEET_LIST_DEFAULT_LIMIT,
+  TIMESHEET_LIST_MAX_LIMIT,
+} from '@/lib/constants';
 import { db } from '@/app/database';
-import type { TimesheetStatus } from '@/types/timesheets';
+import { timeEntries, timesheets } from '@/app/database/schema';
 
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const MAX_LIMIT = 100;
-const DEFAULT_LIMIT = 10;
+interface TimesheetListQuery {
+  orgSlug?: string;
+  page: number;
+  limit: number;
+  status?: string;
+  sort?: string;
+  order: 'asc' | 'desc';
+  from?: string;
+  to?: string;
+}
 
-// Valid enum values from your DB schema: ['COMPLETED', 'INCOMPLETE', 'MISSING', 'SUBMITTED', 'APPROVED', 'REJECTED']
-const ALLOWED_STATUSES = new Set(timesheetStatusEnum.enumValues);
+async function parseListQuery(request: Request): Promise<NextResponse | TimesheetListQuery> {
+  const { searchParams } = new URL(request.url);
+  const from = searchParams.get('startDate')?.trim();
+  const to = searchParams.get('endDate')?.trim();
 
-const SORT_COLUMNS = {
-  startDate: timesheets.startDate,
-  weekNumber: timesheets.weekNumber,
-  status: timesheets.status,
-} as const;
+  if (from && !ISO_DATE_RE.test(from)) {
+    return apiError('Invalid startDate format (expected YYYY-MM-DD)', 400);
+  }
+  if (to && !ISO_DATE_RE.test(to)) {
+    return apiError('Invalid endDate format (expected YYYY-MM-DD)', 400);
+  }
+  if (from && to && from > to) {
+    return apiError('startDate must not be after endDate', 400);
+  }
 
-type SortKey = keyof typeof SORT_COLUMNS;
-const isSortKey = (value: string | null): value is SortKey =>
-  Boolean(value && value in SORT_COLUMNS);
-
-function parseBoundedInt(val: string | null, fallback: number, max = Infinity): number {
-  if (!val) return fallback;
-  const parsed = parseInt(val, 10);
-  if (Number.isNaN(parsed) || parsed < 1) return fallback;
-  return Math.min(parsed, max);
+  return {
+    orgSlug: searchParams.get('orgSlug')?.trim() || undefined,
+    page: parseBoundedInt(searchParams.get('page'), 1),
+    limit: parseBoundedInt(
+      searchParams.get('limit'),
+      TIMESHEET_LIST_DEFAULT_LIMIT,
+      TIMESHEET_LIST_MAX_LIMIT,
+    ),
+    status: searchParams.get('status')?.trim() || undefined,
+    sort: searchParams.get('sort') || undefined,
+    order: searchParams.get('order') === 'desc' ? 'desc' : 'asc',
+    from: from || undefined,
+    to: to || undefined,
+  };
 }
 
 export async function GET(request: Request) {
-  try {
-    // 1. Session Authorization
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const userId = session.user.id;
+  return handleRoute('Error fetching timesheets:', async () => {
+    const user = await requireUser();
+    if (isError(user)) return user;
 
-    // 2. Query Params Extraction
-    const { searchParams } = new URL(request.url);
-    const orgSlug = searchParams.get('orgSlug')?.trim();
-    const rawStatus = searchParams.get('status')?.trim();
-    const sortParam = searchParams.get('sort');
-    const orderParam = searchParams.get('order');
-    const from = searchParams.get('startDate')?.trim();
-    const to = searchParams.get('endDate')?.trim();
+    const parsed = await parseListQuery(request);
+    if (isError(parsed)) return parsed;
 
-    if (!orgSlug) {
-      return NextResponse.json({ error: 'orgSlug is required' }, { status: 400 });
-    }
+    const org = await requireOrgAccess(user.userId, user.user, parsed.orgSlug);
+    if (isError(org)) return org;
 
-    // 3. Session Org Resolution
-    const sessionOrg = session.user.orgs?.find((org) => org.slug === orgSlug);
-    if (!sessionOrg) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    const targetOrgId = sessionOrg.orgId;
-
-    // 4. DB Tenant Membership Safeguard
-    const [membership] = await db
-      .select({ id: orgMemberships.id })
-      .from(orgMemberships)
-      .where(and(eq(orgMemberships.orgId, targetOrgId), eq(orgMemberships.userId, userId)))
-      .limit(1);
-
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 5. Pagination & Sorting Setup
-    const page = parseBoundedInt(searchParams.get('page'), 1);
-    const limit = parseBoundedInt(searchParams.get('limit'), DEFAULT_LIMIT, MAX_LIMIT);
-    const sort: SortKey = isSortKey(sortParam) ? sortParam : 'weekNumber';
-    const order = orderParam === 'desc' ? desc : asc;
-    const sortColumn = SORT_COLUMNS[sort];
-
-    // 6. Base Filter Construction
-    const filters = [eq(timesheets.orgId, targetOrgId)];
-
-    // Enum Validation & Normalization
-    if (rawStatus && rawStatus !== 'ALL' && rawStatus !== 'undefined') {
-      const upperStatus = rawStatus.toUpperCase();
-
-      // Map UI aliases if applicable (e.g. pending -> SUBMITTED)
-      const normalizedStatus = upperStatus === 'PENDING' ? 'SUBMITTED' : upperStatus;
-
-      const isValidStatus = ALLOWED_STATUSES.has(normalizedStatus as any);
-
-      if (!isValidStatus) {
-        // Return empty payload cleanly without throwing a PostgreSQL 500 error
-        return NextResponse.json({
-          data: [],
-          meta: { total: 0, totalPages: 1, page, pageSize: limit },
-        });
-      }
-
-      filters.push(eq(timesheets.status, normalizedStatus as TimesheetStatus));
-    }
-
-    // Date Range Filters
-    if (from) {
-      if (!ISO_DATE_RE.test(from)) {
-        return NextResponse.json(
-          { error: 'Invalid startDate format (expected YYYY-MM-DD)' },
-          { status: 400 },
-        );
-      }
-      filters.push(gte(timesheets.startDate, from));
-    }
-
-    if (to) {
-      if (!ISO_DATE_RE.test(to)) {
-        return NextResponse.json(
-          { error: 'Invalid endDate format (expected YYYY-MM-DD)' },
-          { status: 400 },
-        );
-      }
-      filters.push(lte(timesheets.endDate, to));
-    }
-
-    if (from && to && from > to) {
-      return NextResponse.json({ error: 'startDate must not be after endDate' }, { status: 400 });
-    }
-
-    const whereClause = and(...filters);
-
-    // 7. Execution (Count & Rows in Parallel)
-    const [countRows, rows] = await Promise.all([
-      db.select({ total: count() }).from(timesheets).where(whereClause),
-      db
-        .select()
-        .from(timesheets)
-        .where(whereClause)
-        .orderBy(order(sortColumn))
-        .limit(limit)
-        .offset((page - 1) * limit),
-    ]);
-
-    const total = Number(countRows[0]?.total ?? 0);
-    const totalPages = Math.ceil(total / limit) || 1;
-
-    // 8. Format Output
-    return NextResponse.json({
-      data: rows.map((item) => ({
-        ...item,
-        weekNum: item.weekNumber,
-        date: formatWeekRangeLabel(item.startDate, item.endDate),
-      })),
-      meta: {
-        total,
-        totalPages,
-        page,
-        pageSize: limit,
-      },
+    const result: TimesheetListResult = await getTimesheetList({
+      orgId: org.orgId,
+      page: parsed.page,
+      limit: parsed.limit,
+      status: parsed.status,
+      sort: parsed.sort,
+      order: parsed.order,
+      from: parsed.from,
+      to: parsed.to,
     });
-  } catch (error) {
-    logger.error('Error fetching timesheets:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+
+    return NextResponse.json(result);
+  });
 }
 
 /* ==========================================================================
@@ -184,65 +101,46 @@ interface CreateTimesheetsBody {
 }
 
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const userId = session.user.id;
+  return handleRoute('Error creating timesheet:', async () => {
+    const user = await requireUser();
+    if (isError(user)) return user;
 
     let body: CreateTimesheetsBody;
     try {
       body = (await request.json()) as CreateTimesheetsBody;
     } catch {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return apiError('Invalid JSON body', 400);
     }
 
     const { orgSlug, year, weekNumber, startDate, endDate, targetHours } = body;
 
-    if (!orgSlug) {
-      return NextResponse.json({ error: 'orgSlug is required' }, { status: 400 });
-    }
     if (
       !Number.isInteger(year) ||
       !Number.isInteger(weekNumber) ||
       weekNumber < 1 ||
       weekNumber > 53
     ) {
-      return NextResponse.json({ error: 'Invalid year or weekNumber' }, { status: 400 });
+      return apiError('Invalid year or weekNumber', 400);
     }
     if (!ISO_DATE_RE.test(startDate) || !ISO_DATE_RE.test(endDate)) {
-      return NextResponse.json(
-        { error: 'startDate and endDate must be formatted as YYYY-MM-DD' },
-        { status: 400 },
-      );
+      return apiError('startDate and endDate must be formatted as YYYY-MM-DD', 400);
     }
     if (startDate > endDate) {
-      return NextResponse.json({ error: 'startDate must not be after endDate' }, { status: 400 });
+      return apiError('startDate must not be after endDate', 400);
     }
 
-    const sessionOrg = session.user.orgs?.find((org) => org.slug === orgSlug);
-    if (!sessionOrg) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    const targetOrgId = sessionOrg.orgId;
+    const org = await requireOrgAccess(user.userId, user.user, orgSlug);
+    if (isError(org)) return org;
 
-    const [membership] = await db
-      .select({ id: orgMemberships.id })
-      .from(orgMemberships)
-      .where(and(eq(orgMemberships.orgId, targetOrgId), eq(orgMemberships.userId, userId)))
-      .limit(1);
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const targetHoursValue = targetHours ? targetHours.toFixed(2) : '40.00';
+    // Default targetHours comes from the org-level setting when the caller
+    // does not override it (org.defaultTargetHours is DB-backed).
+    const targetHoursValue = targetHours ? targetHours.toFixed(2) : org.defaultTargetHours;
 
     const [created] = await db
       .insert(timesheets)
       .values({
-        orgId: targetOrgId,
-        userId,
+        orgId: org.orgId,
+        userId: user.userId,
         weekNumber,
         year,
         startDate,
@@ -253,7 +151,7 @@ export async function POST(request: Request) {
       .returning();
 
     if (!created) {
-      return NextResponse.json({ error: 'Failed to create timesheet' }, { status: 500 });
+      return apiError('Failed to create timesheet', 500);
     }
 
     // Auto-generate one day entry per day in the week range (inclusive)
@@ -271,11 +169,14 @@ export async function POST(request: Request) {
       .values(
         entryDates.map((entryDate) => ({
           timesheetId: created.id,
-          userId,
+          userId: user.userId,
           entryDate,
         })),
       )
       .returning();
+
+    // ISR: new timesheet changes the list immediately
+    revalidateTimesheetData(orgSlug);
 
     return NextResponse.json(
       {
@@ -291,8 +192,5 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
-  } catch (error) {
-    logger.error('Error creating timesheet:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+  });
 }

@@ -1,5 +1,7 @@
 import TimesheetListContainer from '@/components/timesheets/TimesheetListContainer';
-import { timesheetService } from '@/services/timesheet';
+import { TIMESHEET_LIST_DEFAULT_LIMIT } from '@/lib/constants';
+import { getStatusItems, requireTenant } from '@/services/timesheet/data';
+import { getTimesheetListCached } from '@/services/timesheet/cache';
 
 interface TimesheetScreenProps {
   orgSlug: string;
@@ -20,24 +22,31 @@ const TimesheetScreen = async ({
   endDate,
   order = 'asc',
 }: TimesheetScreenProps) => {
-  const { data, meta } = await timesheetService.getTimesheets({
-    orgSlug,
-    page,
-    status,
-    sort,
-    order,
-    startDate,
-    endDate,
-  });
+  const tenant = await requireTenant(orgSlug);
 
-  const { data: statusItems } = await timesheetService.getTimesheetStatusItems(orgSlug);
+  const parsedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+
+  const [result, statusItems] = await Promise.all([
+    getTimesheetListCached({
+      orgSlug,
+      orgId: tenant.orgId,
+      page: parsedPage,
+      limit: TIMESHEET_LIST_DEFAULT_LIMIT,
+      status,
+      sort,
+      order,
+      from: startDate,
+      to: endDate,
+    }),
+    Promise.resolve(getStatusItems()),
+  ]);
 
   return (
     <div className="min-h-screen p-6 px-32">
       <TimesheetListContainer
         statusItems={statusItems}
-        timesheets={data}
-        meta={meta}
+        timesheets={result.data}
+        meta={result.meta}
         statusValue={status}
       />
     </div>

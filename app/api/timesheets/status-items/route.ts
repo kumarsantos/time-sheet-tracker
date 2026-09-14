@@ -1,32 +1,19 @@
-import { auth } from '@/auth';
-import { statusValues } from '@/data/dashboard';
-import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
+import { handleRoute, isError, requireOrgAccess, requireUser } from '@/lib/api/route-helpers';
+import { getStatusItems } from '@/services/timesheet/data';
 
 export async function GET(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  return handleRoute('Error fetching timesheet status items:', async () => {
+    const user = await requireUser();
+    if (isError(user)) return user;
 
     const { searchParams } = new URL(request.url);
     const orgSlug = searchParams.get('orgSlug');
-    if (!orgSlug) {
-      return NextResponse.json({ error: 'OrgSlug is required' }, { status: 400 });
-    }
 
-    // 1. Check membership directly from session claims
-    const isMember = session.user.orgs?.some((org) => org.slug === orgSlug);
-    if (!isMember) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // Consistent with every other timesheet handler: DB-verified membership.
+    const org = await requireOrgAccess(user.userId, user.user, orgSlug ?? undefined);
+    if (isError(org)) return org;
 
-    return NextResponse.json({
-      data: statusValues,
-    });
-  } catch (error) {
-    logger.error('Error fetching timesheet status items:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    return NextResponse.json({ data: getStatusItems() });
+  });
 }

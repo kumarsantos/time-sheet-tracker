@@ -90,6 +90,7 @@ export interface TimesheetDetail {
   totalHoursLogged: string; // e.g., "38.50"
   entries: TimeEntryItem[]; // One entry per day in the week range
   projects: TimesheetProject[]; // Org projects for the "Add work" form
+  workTypes: string[]; // Org work types for the "Add work" form
   createdAt: string;
   updatedAt: string;
 }

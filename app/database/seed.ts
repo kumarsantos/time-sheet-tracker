@@ -122,6 +122,7 @@ async function main(): Promise<void> {
       name: DEMO_ORG_SLUG.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       slug: DEMO_ORG_SLUG,
       description: 'Seed organization',
+      defaultTargetHours: '40.00',
     })
     .returning({ id: organizations.id });
 
@@ -135,6 +136,7 @@ async function main(): Promise<void> {
           name: `Org ${i}`,
           slug: `org-${i}`,
           description: 'Additional seed organization',
+          defaultTargetHours: '40.00',
         })
         .returning({ id: organizations.id });
       if (org) orgIds.push(org.id);

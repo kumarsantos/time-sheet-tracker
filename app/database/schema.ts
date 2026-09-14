@@ -64,6 +64,12 @@ export const organizations = pgTable('organizations', {
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   description: text('description'),
 
+  // Org-level weekly target used as the default when a timesheet is created
+  // without an explicit targetHours.
+  defaultTargetHours: numeric('default_target_hours', { precision: 5, scale: 2 })
+    .notNull()
+    .default('40.00'),
+
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

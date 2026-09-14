@@ -54,10 +54,10 @@ interface TimesheetDetailViewProps {
 export default function TimesheetDetailView({ orgSlug, data }: TimesheetDetailViewProps) {
   // Local state so added works + updated totals render immediately without a reload
   const [detail, setDetail] = useState<TimesheetDetail>(data);
-  const [options, setOptions] = useState<AddWorkOptions>({
+  const options: AddWorkOptions = {
     projects: data.projects,
-    workTypes: [],
-  });
+    workTypes: data.workTypes,
+  };
   const [dialogEntry, setDialogEntry] = useState<TimeEntryItem | null>(null);
   const [editingWork, setEditingWork] = useState<WorkItem | null>(null);
   const [workToDelete, setWorkToDelete] = useState<WorkItem | null>(null);
@@ -97,23 +97,6 @@ export default function TimesheetDetailView({ orgSlug, data }: TimesheetDetailVi
       );
     }
   }, [dialogEntry, editingWork, options.workTypes, reset]);
-
-  useEffect(() => {
-    let active = true;
-    timesheetService
-      .getAddWorkOptions(orgSlug)
-      .then((result) => {
-        if (active) setOptions(result.data);
-      })
-      .catch((error) => {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : 'Failed to load add-work options.');
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [orgSlug]);
 
   const handleSaveWork = handleSubmit((values) => {
     if (!dialogEntry) return;
