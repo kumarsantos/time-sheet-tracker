@@ -70,6 +70,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --font-inter: var(--font-inter);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -99,6 +101,6 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter antialiased;
   }
 }
