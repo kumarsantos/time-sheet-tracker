@@ -1,5 +1,4 @@
 import {
-  boolean,
   pgTable,
   timestamp,
   varchar,
@@ -8,8 +7,10 @@ import {
   text,
   date,
   integer,
+  numeric,
   pgEnum,
   primaryKey,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import type { AdapterAccountType } from '@auth/core/adapters';
@@ -25,11 +26,12 @@ export const timesheetStatusEnum = pgEnum('timesheet_status', [
   'APPROVED',
 ]);
 
+export const organizationRoleEnum = pgEnum('organization_role', ['OWNER', 'ADMIN', 'MEMBER']);
+
 /* ==========================================================================
-   2. AUTH.JS REQUIRED TABLES
+   2. CORE AUTH TABLES (Auth.js / NextAuth Compatible)
    ========================================================================== */
 
-// 2.1 USERS TABLE
 export const users = pgTable(
   'users',
   {
@@ -39,8 +41,7 @@ export const users = pgTable(
     emailVerified: timestamp('email_verified', { mode: 'date', withTimezone: true }),
     image: text('image'),
 
-    // Custom app fields
-    password: varchar('password', { length: 255 }), // Nullable to support OAuth providers (Google, GitHub, etc.)
+    password: varchar('password', { length: 255 }), // Nullable for OAuth users
     firstName: varchar('first_name', { length: 100 }),
     lastName: varchar('last_name', { length: 100 }),
 
@@ -54,7 +55,6 @@ export const users = pgTable(
   (table) => [index('idx_users_email').on(table.email)],
 );
 
-// 2.2 ACCOUNTS TABLE (OAuth Providers like Google, GitHub, etc.)
 export const accounts = pgTable(
   'accounts',
   {
@@ -78,7 +78,6 @@ export const accounts = pgTable(
   ],
 );
 
-// 2.3 SESSIONS TABLE (For database-backed Auth.js sessions)
 export const sessions = pgTable(
   'sessions',
   {
@@ -91,7 +90,6 @@ export const sessions = pgTable(
   (table) => [index('idx_sessions_user').on(table.userId)],
 );
 
-// 2.4 VERIFICATION TOKENS TABLE (For magic links or password resets)
 export const verificationTokens = pgTable(
   'verification_tokens',
   {
@@ -102,32 +100,16 @@ export const verificationTokens = pgTable(
   (table) => [primaryKey({ columns: [table.identifier, table.token] })],
 );
 
-// 2.5 AUTHENTICATORS TABLE (For WebAuthn / Passkeys)
-export const authenticators = pgTable(
-  'authenticators',
-  {
-    credentialID: text('credential_id').notNull().unique(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    providerAccountId: text('provider_account_id').notNull(),
-    credentialPublicKey: text('credential_public_key').notNull(),
-    counter: integer('counter').notNull(),
-    credentialDeviceType: text('credential_device_type').notNull(),
-    credentialBackedUp: boolean('credential_backed_up').notNull(),
-    transports: text('transports'),
-  },
-  (table) => [primaryKey({ columns: [table.userId, table.credentialID] })],
-);
-
 /* ==========================================================================
-   3. APPLICATION DOMAIN TABLES
+   3. MULTI-TENANCY & DOMAIN TABLES
    ========================================================================== */
 
-export const projects = pgTable('projects', {
+export const organizations = pgTable('organizations', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
   description: text('description'),
+
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
@@ -135,10 +117,50 @@ export const projects = pgTable('projects', {
     .$onUpdateFn(() => new Date()),
 });
 
+export const orgMemberships = pgTable(
+  'org_memberships',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    role: organizationRoleEnum('role').notNull().default('MEMBER'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Prevents duplicate user memberships in the same organization
+    unique('uq_org_memberships_user_org').on(table.userId, table.orgId),
+  ],
+);
+
+export const projects = pgTable(
+  'projects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [index('idx_projects_org').on(table.orgId)],
+);
+
 export const timesheets = pgTable(
   'timesheets',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -149,8 +171,10 @@ export const timesheets = pgTable(
     endDate: date('end_date', { mode: 'string' }).notNull(),
 
     status: timesheetStatusEnum('status').notNull().default('MISSING'),
-    targetHours: integer('target_hours').notNull().default(40),
-    totalHoursLogged: integer('total_hours_logged').notNull().default(0),
+    targetHours: numeric('target_hours', { precision: 5, scale: 2 }).notNull().default('40.00'),
+    totalHoursLogged: numeric('total_hours_logged', { precision: 5, scale: 2 })
+      .notNull()
+      .default('0.00'),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
@@ -159,7 +183,7 @@ export const timesheets = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    index('idx_timesheets_user_dates').on(table.userId, table.startDate, table.endDate),
+    index('idx_timesheets_org_user').on(table.orgId, table.userId),
     index('idx_timesheets_user_status').on(table.userId, table.status),
   ],
 );
@@ -180,7 +204,7 @@ export const timeEntries = pgTable(
 
     typeOfWork: varchar('type_of_work', { length: 100 }).notNull(),
     description: text('description').notNull(),
-    hours: integer('hours').notNull(),
+    hours: numeric('hours', { precision: 5, scale: 2 }).notNull(),
     entryDate: date('entry_date', { mode: 'string' }).notNull(),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -198,85 +222,50 @@ export const timeEntries = pgTable(
 /* ==========================================================================
    4. RELATIONS
    ========================================================================== */
+
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
-  authenticators: many(authenticators),
+  memberships: many(orgMemberships),
   timesheets: many(timesheets),
   timeEntries: many(timeEntries),
 }));
 
-export const accountsRelations = relations(accounts, ({ one }) => ({
-  user: one(users, {
-    fields: [accounts.userId],
-    references: [users.id],
-  }),
-}));
-
 export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, {
-    fields: [sessions.userId],
-    references: [users.id],
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+}));
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  memberships: many(orgMemberships),
+  projects: many(projects),
+  timesheets: many(timesheets),
+}));
+
+export const orgMembershipsRelations = relations(orgMemberships, ({ one }) => ({
+  user: one(users, { fields: [orgMemberships.userId], references: [users.id] }),
+  organization: one(organizations, {
+    fields: [orgMemberships.orgId],
+    references: [organizations.id],
   }),
 }));
 
-export const authenticatorsRelations = relations(authenticators, ({ one }) => ({
-  user: one(users, {
-    fields: [authenticators.userId],
-    references: [users.id],
-  }),
-}));
-
-export const projectsRelations = relations(projects, ({ many }) => ({
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  organization: one(organizations, { fields: [projects.orgId], references: [organizations.id] }),
   timeEntries: many(timeEntries),
 }));
 
 export const timesheetsRelations = relations(timesheets, ({ one, many }) => ({
-  user: one(users, {
-    fields: [timesheets.userId],
-    references: [users.id],
-  }),
+  organization: one(organizations, { fields: [timesheets.orgId], references: [organizations.id] }),
+  user: one(users, { fields: [timesheets.userId], references: [users.id] }),
   entries: many(timeEntries),
 }));
 
 export const timeEntriesRelations = relations(timeEntries, ({ one }) => ({
-  timesheet: one(timesheets, {
-    fields: [timeEntries.timesheetId],
-    references: [timesheets.id],
-  }),
-  user: one(users, {
-    fields: [timeEntries.userId],
-    references: [users.id],
-  }),
-  project: one(projects, {
-    fields: [timeEntries.projectId],
-    references: [projects.id],
-  }),
+  timesheet: one(timesheets, { fields: [timeEntries.timesheetId], references: [timesheets.id] }),
+  user: one(users, { fields: [timeEntries.userId], references: [users.id] }),
+  project: one(projects, { fields: [timeEntries.projectId], references: [projects.id] }),
 }));
-
-/* ==========================================================================
-   5. TYPE INFERENCES
-   ========================================================================== */
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-
-export type Account = typeof accounts.$inferSelect;
-export type NewAccount = typeof accounts.$inferInsert;
-
-export type Session = typeof sessions.$inferSelect;
-export type NewSession = typeof sessions.$inferInsert;
-
-export type VerificationToken = typeof verificationTokens.$inferSelect;
-export type NewVerificationToken = typeof verificationTokens.$inferInsert;
-
-export type Authenticator = typeof authenticators.$inferSelect;
-export type NewAuthenticator = typeof authenticators.$inferInsert;
-
-export type Project = typeof projects.$inferSelect;
-export type NewProject = typeof projects.$inferInsert;
-
-export type Timesheet = typeof timesheets.$inferSelect;
-export type NewTimesheet = typeof timesheets.$inferInsert;
-
-export type TimeEntry = typeof timeEntries.$inferSelect;
-export type NewTimeEntry = typeof timeEntries.$inferInsert;
