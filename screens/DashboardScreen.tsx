@@ -1,43 +1,38 @@
 import TimesheetListContainer from '@/components/dashboard/TimesheetListContainer';
-import type { StatusValue, TimesheetItem } from '@/types/dashboard';
+import { timesheetService } from '@/services/timesheet';
 
-const statusValues: StatusValue[] = [
-  {
-    label: 'All',
-    value: 'all',
-  },
-  {
-    label: 'Pending',
-    value: 'pending',
-  },
-  {
-    label: 'Completed',
-    value: 'completed',
-  },
-  {
-    label: 'Failed',
-    value: 'failed',
-  },
-];
+const DashboardScreen = async ({
+  orgId,
+  page = '1',
+  status,
+  sort,
+  startDate,
+  endDate,
+  order = 'asc',
+}: {
+  orgId: string;
+  page?: string;
+  status?: string;
+  sort?: string;
+  startDate?: string;
+  endDate?: string;
+  order?: 'asc' | 'desc';
+}) => {
+  const { data, meta } = await timesheetService.getTimesheets({
+    orgId,
+    page,
+    status,
+    sort,
+    order,
+    startDate,
+    endDate,
+  });
 
-const timesheetsData: TimesheetItem[] = [
-  { id: '1', weekNum: 1, date: '1 - 5 January, 2024', status: 'COMPLETED' },
-  { id: '2', weekNum: 2, date: '8 - 12 January, 2024', status: 'COMPLETED' },
-  { id: '3', weekNum: 3, date: '15 - 19 January, 2024', status: 'INCOMPLETE' },
-  { id: '4', weekNum: 4, date: '22 - 26 January, 2024', status: 'COMPLETED' },
-  { id: '5', weekNum: 5, date: '28 January - 1 February, 2024', status: 'MISSING' },
-  { id: '6', weekNum: 6, date: '5 - 9 February, 2024', status: 'MISSING' },
-  { id: '7', weekNum: 7, date: '12 - 16 February, 2024', status: 'MISSING' },
-];
+  const { data: statusItems } = await timesheetService.getTimesheetStatusItems(orgId);
 
-const DashboardScreen = () => {
   return (
     <div className="flex min-h-screen flex-col gap-4 p-6 px-32">
-      <TimesheetListContainer
-        statusItems={statusValues}
-        timesheets={timesheetsData}
-        meta={{ totalPages: 2, page: 2, pageSize: 5, total: timesheetsData.length }}
-      />
+      <TimesheetListContainer statusItems={statusItems} timesheets={data} meta={meta} />
       <div className="mx-auto flex w-full items-center justify-center rounded-lg bg-white py-6 shadow">
         <p className="text-sm text-gray-500">© 2024 tentwenty. All rights reserved.</p>
       </div>
