@@ -24,6 +24,7 @@ export const timesheetStatusEnum = pgEnum('timesheet_status', [
   'MISSING',
   'SUBMITTED',
   'APPROVED',
+  'REJECTED',
 ]);
 
 export const organizationRoleEnum = pgEnum('organization_role', ['OWNER', 'ADMIN', 'MEMBER']);
@@ -185,9 +186,10 @@ export const timesheets = pgTable(
   (table) => [
     index('idx_timesheets_org_user').on(table.orgId, table.userId),
     index('idx_timesheets_user_status').on(table.userId, table.status),
+    // CRITICAL for GET /api/timesheets performance
+    index('idx_timesheets_org_status_start').on(table.orgId, table.status, table.startDate),
   ],
 );
-
 export const timeEntries = pgTable(
   'time_entries',
   {
