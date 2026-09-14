@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import Footer from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { redirect, notFound } from 'next/navigation';
 
@@ -26,6 +27,9 @@ export default async function PrivateLayout({ children, params }: Readonly<Priva
     <div className="flex min-h-screen flex-col bg-gray-100 antialiased">
       <Navbar user={session.user} />
       <main className="flex w-full flex-1 flex-col">{children}</main>
+      <div className="mx-auto mb-4 w-full max-w-7xl px-12">
+        <Footer />
+      </div>
     </div>
   );
 }
