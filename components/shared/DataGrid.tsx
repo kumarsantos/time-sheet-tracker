@@ -204,7 +204,7 @@ export function DataGrid<T extends object>({
       >
         <table className="w-full border-collapse text-left text-sm">
           <thead>
-            <tr className="bg-gray-50/50 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+            <tr className="border-b bg-gray-50/50 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
               {columns.map((col) => {
                 const isActiveSort = activeSortKey === col.key;
                 const isDesc = activeSortOrder === 'desc';
@@ -234,12 +234,15 @@ export function DataGrid<T extends object>({
                         <div className="flex items-center">
                           {isActiveSort ? (
                             isDesc ? (
-                              <ArrowDown className="h-3 w-3 text-[#1D61E8]" />
+                              <ArrowDown strokeWidth={3} className="h-3 w-3 text-[#1D61E8]" />
                             ) : (
-                              <ArrowUp className="h-3 w-3 text-[#1D61E8]" />
+                              <ArrowUp strokeWidth={3} className="h-3 w-3 text-[#1D61E8]" />
                             )
                           ) : (
-                            <ArrowDown className="h-3 w-3 text-gray-400 opacity-60 hover:opacity-100" />
+                            <ArrowDown
+                              strokeWidth={3}
+                              className="h-3 w-3 text-gray-400 opacity-60 hover:opacity-100"
+                            />
                           )}
                         </div>
                       )}
