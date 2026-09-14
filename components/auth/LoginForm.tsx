@@ -3,7 +3,7 @@
 import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { type LoginFormData, loginSchema } from '@/lib/validations/auth';
@@ -22,7 +22,7 @@ export default function LoginForm() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
+  } = useForm<LoginFormData, boolean, LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: INITIAL_LOGIN_FORM_VALUES,
   });
@@ -36,16 +36,36 @@ export default function LoginForm() {
           rememberMe: data.rememberMe,
           redirect: false,
         });
+
         // 1. Guard against failed credentials
         if (result?.error) {
-          const errorMessage = 'Invalid email or password.';
-          toast.error(errorMessage);
+          switch (result.code) {
+            case 'account_disabled':
+              toast.error('Your account has been suspended. Contact support.');
+              break;
+            case 'oauth_account_only':
+              toast.error('Please sign in using your OAuth provider (e.g., Google).');
+              break;
+            case 'no_organization_assigned':
+              toast.error('No active organization found for this user.');
+              break;
+            default:
+              toast.error('Invalid email or password.');
+              break;
+          }
           return;
         }
-        // 2. Success flow: Notify and redirect
-        toast.success('Signed in successfully');
-        router.push('/dashboard');
-        router.refresh();
+
+        // Refresh local session to sync JWT claims
+        const session = await getSession();
+
+        if (session?.user?.primaryOrgSlug) {
+          toast.success('Authenticated successfully');
+          router.push(`/dashboard/${session.user.primaryOrgSlug}`);
+          router.refresh();
+        } else {
+          toast.error('Failed to resolve workspace details.');
+        }
       } catch {
         const fallbackError = 'An unexpected server error occurred. Please try again.';
         toast.error(fallbackError);
