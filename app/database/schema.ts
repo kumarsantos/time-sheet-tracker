@@ -9,11 +9,9 @@ import {
   integer,
   numeric,
   pgEnum,
-  primaryKey,
   unique,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import type { AdapterAccountType } from '@auth/core/adapters';
 
 /* ==========================================================================
    1. ENUMS
@@ -54,51 +52,6 @@ export const users = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [index('idx_users_email').on(table.email)],
-);
-
-export const accounts = pgTable(
-  'accounts',
-  {
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    type: varchar('type', { length: 255 }).$type<AdapterAccountType>().notNull(),
-    provider: varchar('provider', { length: 255 }).notNull(),
-    providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
-    refresh_token: text('refresh_token'),
-    access_token: text('access_token'),
-    expires_at: integer('expires_at'),
-    token_type: varchar('token_type', { length: 255 }),
-    scope: text('scope'),
-    id_token: text('id_token'),
-    session_state: text('session_state'),
-  },
-  (table) => [
-    primaryKey({ columns: [table.provider, table.providerAccountId] }),
-    index('idx_accounts_user').on(table.userId),
-  ],
-);
-
-export const sessions = pgTable(
-  'sessions',
-  {
-    sessionToken: varchar('session_token', { length: 255 }).primaryKey(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
-  },
-  (table) => [index('idx_sessions_user').on(table.userId)],
-);
-
-export const verificationTokens = pgTable(
-  'verification_tokens',
-  {
-    identifier: varchar('identifier', { length: 255 }).notNull(),
-    token: varchar('token', { length: 255 }).notNull(),
-    expires: timestamp('expires', { mode: 'date', withTimezone: true }).notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.identifier, table.token] })],
 );
 
 /* ==========================================================================
@@ -226,19 +179,9 @@ export const timeEntries = pgTable(
    ========================================================================== */
 
 export const usersRelations = relations(users, ({ many }) => ({
-  accounts: many(accounts),
-  sessions: many(sessions),
   memberships: many(orgMemberships),
   timesheets: many(timesheets),
   timeEntries: many(timeEntries),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, { fields: [sessions.userId], references: [users.id] }),
-}));
-
-export const accountsRelations = relations(accounts, ({ one }) => ({
-  user: one(users, { fields: [accounts.userId], references: [users.id] }),
 }));
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
