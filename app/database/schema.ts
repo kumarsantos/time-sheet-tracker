@@ -153,13 +153,6 @@ export const timeEntries = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    projectId: uuid('project_id')
-      .notNull()
-      .references(() => projects.id, { onDelete: 'restrict' }),
-
-    typeOfWork: varchar('type_of_work', { length: 100 }).notNull(),
-    description: text('description').notNull(),
-    hours: numeric('hours', { precision: 5, scale: 2 }).notNull(),
     entryDate: date('entry_date', { mode: 'string' }).notNull(),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -174,6 +167,36 @@ export const timeEntries = pgTable(
   ],
 );
 
+export const works = pgTable(
+  'works',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    timeEntryId: uuid('time_entry_id')
+      .notNull()
+      .references(() => timeEntries.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'restrict' }),
+
+    typeOfWork: varchar('type_of_work', { length: 100 }).notNull(),
+    description: text('description').notNull(),
+    hours: numeric('hours', { precision: 5, scale: 2 }).notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index('idx_works_time_entry').on(table.timeEntryId),
+    index('idx_works_user').on(table.userId),
+  ],
+);
+
 /* ==========================================================================
    4. RELATIONS
    ========================================================================== */
@@ -182,6 +205,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(orgMemberships),
   timesheets: many(timesheets),
   timeEntries: many(timeEntries),
+  works: many(works),
 }));
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -200,7 +224,7 @@ export const orgMembershipsRelations = relations(orgMemberships, ({ one }) => ({
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   organization: one(organizations, { fields: [projects.orgId], references: [organizations.id] }),
-  timeEntries: many(timeEntries),
+  works: many(works),
 }));
 
 export const timesheetsRelations = relations(timesheets, ({ one, many }) => ({
@@ -209,8 +233,14 @@ export const timesheetsRelations = relations(timesheets, ({ one, many }) => ({
   entries: many(timeEntries),
 }));
 
-export const timeEntriesRelations = relations(timeEntries, ({ one }) => ({
+export const timeEntriesRelations = relations(timeEntries, ({ one, many }) => ({
   timesheet: one(timesheets, { fields: [timeEntries.timesheetId], references: [timesheets.id] }),
   user: one(users, { fields: [timeEntries.userId], references: [users.id] }),
-  project: one(projects, { fields: [timeEntries.projectId], references: [projects.id] }),
+  works: many(works),
+}));
+
+export const worksRelations = relations(works, ({ one }) => ({
+  timeEntry: one(timeEntries, { fields: [works.timeEntryId], references: [timeEntries.id] }),
+  user: one(users, { fields: [works.userId], references: [users.id] }),
+  project: one(projects, { fields: [works.projectId], references: [projects.id] }),
 }));
