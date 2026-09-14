@@ -15,14 +15,12 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'], // Serve modern optimized formats
     minimumCacheTTL: 2592000,
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**', // Allow all hostnames for flexibility; restrict in production if needed
-      },
-      {
-        protocol: 'http',
-        hostname: '**',
-      },
+      // HTTPS-only, explicit allowlist for auth-provider avatars. Avoids the
+      // `**` wildcard, which would let any host be proxied through the optimizer.
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+      { protocol: 'https', hostname: 'www.gravatar.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'lisayta-images.s3.amazonaws.com' },
     ],
   },
 
@@ -52,6 +50,10 @@ const nextConfig: NextConfig = {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
           },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
+          },
         ],
       },
     ];
@@ -60,6 +62,11 @@ const nextConfig: NextConfig = {
   compiler: {
     // Automatically strip console.log in production, but keep console.error/warn
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
+
+  // 6. Bundle Optimization: tree-shake via subpath imports for large client libs
+  experimental: {
+    optimizePackageImports: ['date-fns', 'lucide-react'],
   },
 };
 
