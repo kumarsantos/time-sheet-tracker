@@ -14,7 +14,7 @@ export default function DashboardError({ error }: DashboardErrorProps) {
   const [isPending, startTransition] = useTransition();
 
   const orgSlug = params?.orgSlug as string | undefined;
-  const targetDashboardUrl = orgSlug ? `/dashboard/${orgSlug}` : '/dashboard';
+  const targetDashboardUrl = orgSlug ? `/${orgSlug}/timesheets` : '/timesheets';
 
   const isAuthOrPermissionError =
     error.message.toLowerCase().includes('unauthorized') ||
