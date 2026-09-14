@@ -2,7 +2,15 @@ import { eq } from 'drizzle-orm';
 import * as dotenv from 'dotenv';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { organizations, orgMemberships, users, projects, timesheets, timeEntries } from './schema';
+import {
+  organizations,
+  orgMemberships,
+  users,
+  projects,
+  timesheets,
+  timeEntries,
+  works,
+} from './schema';
 import { logger } from '@/lib/logger';
 import { hashPassword } from '@/lib/auth/password';
 
@@ -63,6 +71,7 @@ const between = (rng: () => number, min: number, max: number) =>
   Math.floor(rng() * (max - min + 1)) + min;
 
 async function wipe() {
+  await db.delete(works);
   await db.delete(timeEntries);
   await db.delete(timesheets);
   await db.delete(projects);
@@ -182,7 +191,8 @@ async function main(): Promise<void> {
     const sweepStartMs = new Date(startDateStr + 'T00:00:00.000Z').getTime();
     const sweepEndMs = new Date(endDateStr + 'T00:00:00.000Z').getTime();
 
-    // Iterate day by day from startDate to endDate inclusive
+    // Iterate day by day from startDate to endDate inclusive and auto-create a
+    // day entry per date; works are attached to each day entry afterwards.
     for (let dayMs = sweepStartMs; dayMs <= sweepEndMs; dayMs += DAY_MS) {
       const entryDate = new Date(dayMs).toISOString().slice(0, 10);
       const hoursLogged = between(rng, 6, 8); // Generates between 6 and 8 hours daily
@@ -190,15 +200,25 @@ async function main(): Promise<void> {
 
       totalLogged += hoursLogged;
 
-      await db.insert(timeEntries).values({
-        timesheetId: ts.id,
-        userId: demoUser.id,
-        projectId: pick(rng, projectPool)!.id,
-        typeOfWork: pick(rng, WORK_TYPE_VALUES),
-        description: pick(rng, entryPool),
-        hours: formattedHours,
-        entryDate,
-      });
+      const [dayEntry] = await db
+        .insert(timeEntries)
+        .values({
+          timesheetId: ts.id,
+          userId: demoUser.id,
+          entryDate,
+        })
+        .returning({ id: timeEntries.id });
+
+      if (dayEntry) {
+        await db.insert(works).values({
+          timeEntryId: dayEntry.id,
+          userId: demoUser.id,
+          projectId: pick(rng, projectPool)!.id,
+          typeOfWork: pick(rng, WORK_TYPE_VALUES),
+          description: pick(rng, entryPool),
+          hours: formattedHours,
+        });
+      }
     }
 
     // Update parent timesheet total logged hours
