@@ -1,39 +1,26 @@
-// import { db } from '@/app/database';
+import { auth } from '@/auth';
 import { statusValues } from '@/data/dashboard';
 import { logger } from '@/lib/logger';
-import { getSession } from 'next-auth/react';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   try {
-    const session = await getSession();
+    const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-
-    // // Extract parameters
-    const orgId = searchParams.get('orgId');
-
-    if (!orgId) {
-      return NextResponse.json({ error: 'orgId is required' }, { status: 400 });
+    const orgSlug = searchParams.get('orgSlug');
+    if (!orgSlug) {
+      return NextResponse.json({ error: 'OrgSlug is required' }, { status: 400 });
     }
 
-    // // 1. Verify user membership in org
-    // const isMember = await db.orgMemberships.findUnique({
-    //   where: { userId_orgId: { userId: session.user.id, orgId } },
-    // });
-
-    // if (!isMember) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
-
-    // // 2. Build dynamic filter clause
-    // const whereClause: any = {
-    //   orgId,
-    //   userId: session.user.id,
-    // };
+    // 1. Check membership directly from session claims
+    const isMember = session.user.orgs?.some((org) => org.slug === orgSlug);
+    if (!isMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     return NextResponse.json({
       data: statusValues,
