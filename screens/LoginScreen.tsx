@@ -3,7 +3,7 @@ import LoginForm from '@/components/auth/LoginForm';
 
 const LoginScreen = () => {
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-white lg:grid-cols-2">
+    <main id="main" tabIndex={-1} className="grid min-h-screen grid-cols-1 bg-white lg:grid-cols-2">
       {/* Left Column: Auth Form */}
       <section className="flex flex-col items-center justify-center px-6 py-12 lg:px-12">
         <div className="w-full max-w-xl space-y-6">

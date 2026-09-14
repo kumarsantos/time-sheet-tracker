@@ -26,7 +26,9 @@ export default async function PrivateLayout({ children, params }: Readonly<Priva
   return (
     <div className="flex min-h-screen flex-col bg-gray-100 antialiased">
       <Navbar user={session.user} />
-      <main className="flex w-full flex-col">{children}</main>
+      <main id="main" tabIndex={-1} className="flex w-full flex-col">
+        {children}
+      </main>
       <div className="mx-auto mb-4 w-full max-w-7xl px-12">
         <Footer />
       </div>

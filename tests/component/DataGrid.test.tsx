@@ -55,6 +55,27 @@ describe('DataGrid (server mode) — sorting', () => {
       scroll: false,
     });
   });
+
+  it('renders sortable headers as keyboard-focusable buttons with aria-sort', () => {
+    currentParams.value = new URLSearchParams('sort=weekNumber&order=desc');
+    renderServer({ page: 1, pageSize: 5, total: 32, totalPages: 7 });
+
+    const headerCell = screen.getByRole('columnheader', { name: /week #/i });
+    expect(headerCell).toHaveAttribute('aria-sort', 'descending');
+
+    const sortButton = screen.getByRole('button', { name: /week #/i });
+    expect(sortButton).toHaveAttribute('type', 'button');
+  });
+
+  it('marks unsorted columns as aria-sort=none', () => {
+    currentParams.value = new URLSearchParams('');
+    renderServer({ page: 1, pageSize: 5, total: 32, totalPages: 7 });
+
+    expect(screen.getByRole('columnheader', { name: /week #/i })).toHaveAttribute(
+      'aria-sort',
+      'none',
+    );
+  });
 });
 
 describe('DataGrid (server mode) — pagination footer', () => {

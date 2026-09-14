@@ -107,10 +107,16 @@ export function Dropdown(props: DropdownProps) {
                     className="gap-1 rounded-md bg-gray-100 pr-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
                   >
                     {item?.label || val}
-                    <X
-                      className="h-3 w-3 cursor-pointer text-gray-400 hover:text-gray-600"
+                    <button
+                      type="button"
+                      aria-label={`Remove ${item?.label || val}`}
+                      className="flex cursor-pointer items-center rounded-sm text-gray-400 hover:text-gray-600 focus:ring-2 focus:ring-[#1D61E8]/20 focus:outline-none"
                       onClick={(e) => handleRemove(val, e)}
-                    />
+                    >
+                      <span aria-hidden="true">
+                        <X className="h-3 w-3" />
+                      </span>
+                    </button>
                   </Badge>
                 );
               })}
@@ -120,7 +126,7 @@ export function Dropdown(props: DropdownProps) {
         </PopoverTrigger>
         <PopoverContent className="w-56 rounded-xl p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search..." />
+            <CommandInput placeholder="Search..." aria-label="Filter options" />
             <CommandList>
               <CommandEmpty>No options found.</CommandEmpty>
               <CommandGroup heading={groupLabel}>

@@ -215,6 +215,15 @@ export function DataGrid<T extends object>({
                 return (
                   <th
                     key={col.key}
+                    aria-sort={
+                      col.sortable
+                        ? isActiveSort
+                          ? isDesc
+                            ? 'descending'
+                            : 'ascending'
+                          : 'none'
+                        : undefined
+                    }
                     className={cn(
                       'px-6 py-4 text-xs font-semibold text-gray-500',
                       col.align === 'center' && 'text-center',
@@ -223,33 +232,41 @@ export function DataGrid<T extends object>({
                       col.width,
                     )}
                   >
-                    <div
-                      onClick={() => col.sortable && handleSort(col.key)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 select-none',
-                        col.sortable && 'cursor-pointer hover:text-gray-900',
-                        col.align === 'center' && 'justify-center',
-                        col.align === 'right' && 'justify-end',
-                      )}
-                    >
-                      <span>{col.header}</span>
-                      {col.sortable && (
-                        <div className="flex items-center">
-                          {isActiveSort ? (
-                            isDesc ? (
-                              <ArrowDown strokeWidth={3} className="h-3 w-3 text-[#1D61E8]" />
-                            ) : (
-                              <ArrowUp strokeWidth={3} className="h-3 w-3 text-[#1D61E8]" />
-                            )
+                    {col.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key)}
+                        className={cn(
+                          'inline-flex cursor-pointer items-center gap-1.5 select-none hover:text-gray-900',
+                          col.align === 'center' && 'justify-center',
+                          col.align === 'right' && 'justify-end',
+                        )}
+                      >
+                        <span>{col.header}</span>
+                        {isActiveSort ? (
+                          isDesc ? (
+                            <ArrowDown strokeWidth={3} className="h-3 w-3 text-[#1D61E8]" />
                           ) : (
-                            <ArrowDown
-                              strokeWidth={3}
-                              className="h-3 w-3 text-gray-400 opacity-60 hover:opacity-100"
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            <ArrowUp strokeWidth={3} className="h-3 w-3 text-[#1D61E8]" />
+                          )
+                        ) : (
+                          <ArrowDown
+                            strokeWidth={3}
+                            className="h-3 w-3 text-gray-400 opacity-60 hover:opacity-100"
+                          />
+                        )}
+                      </button>
+                    ) : (
+                      <div
+                        className={cn(
+                          'inline-flex items-center gap-1.5',
+                          col.align === 'center' && 'justify-center',
+                          col.align === 'right' && 'justify-end',
+                        )}
+                      >
+                        <span>{col.header}</span>
+                      </div>
+                    )}
                   </th>
                 );
               })}

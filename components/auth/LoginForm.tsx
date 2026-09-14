@@ -87,9 +87,15 @@ export default function LoginForm() {
           autoComplete="email"
           placeholder="name@example.com"
           disabled={isPending}
+          aria-invalid={errors.email ? true : undefined}
+          aria-describedby={errors.email ? 'email-error' : undefined}
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 transition outline-none focus:border-[#1D61E8] focus:ring-2 focus:ring-[#1D61E8]/20 disabled:opacity-50"
         />
-        {errors.email && <p className="text-xs font-medium text-red-500">{errors.email.message}</p>}
+        {errors.email && (
+          <p id="email-error" role="alert" className="text-xs font-medium text-red-500">
+            {errors.email.message}
+          </p>
+        )}
       </div>
 
       {/* Password Field */}
@@ -104,10 +110,14 @@ export default function LoginForm() {
           autoComplete="current-password"
           placeholder="••••••••••"
           disabled={isPending}
+          aria-invalid={errors.password ? true : undefined}
+          aria-describedby={errors.password ? 'password-error' : undefined}
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 transition outline-none focus:border-[#1D61E8] focus:ring-2 focus:ring-[#1D61E8]/20 disabled:opacity-50"
         />
         {errors.password && (
-          <p className="text-xs font-medium text-red-500">{errors.password.message}</p>
+          <p id="password-error" role="alert" className="text-xs font-medium text-red-500">
+            {errors.password.message}
+          </p>
         )}
       </div>
 
