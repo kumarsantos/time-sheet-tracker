@@ -1,4 +1,4 @@
-// libs/time.ts
+import { MONTHS } from '@/lib/constants';
 
 /**
  * Strict Brand and Nominal Types for Safe Date Inputs
@@ -162,6 +162,40 @@ export function formatRelativeTime(
 
   const value = Math.round(duration) * Math.sign(elapsedSeconds);
   return rtf.format(value, selectedUnit);
+}
+
+/**
+ * Builds the human week-range label used by the timesheet row contract,
+ * e.g. `formatWeekRangeLabel('2026-01-01', '2026-01-05')` ➔ "1 - 5 January, 2026".
+ *
+ * Derived directly from the ISO `YYYY-MM-DD` calendar components (never the
+ * formatted label), so range filtering/search keeps working on the real
+ * `startDate`/`endDate` columns while this stays display-only.
+ *
+ * @param startDate - ISO calendar date where the week begins (auto-trimmed to `YYYY-MM-DD`)
+ * @param endDate   - ISO calendar date marking the last inclusive day of the week
+ */
+export function formatWeekRangeLabel(startDate: string, endDate: string): string {
+  const start = startDate.trim().slice(0, 10);
+  const end = endDate.trim().slice(0, 10);
+
+  const startDay = parseInt(start.slice(8, 10), 10);
+  const startMonth = parseInt(start.slice(5, 7), 10) - 1;
+  const startYear = start.slice(0, 4);
+
+  const endDay = parseInt(end.slice(8, 10), 10);
+  const endMonth = parseInt(end.slice(5, 7), 10) - 1;
+  const endYear = end.slice(0, 4);
+
+  if (startMonth === endMonth && startYear === endYear) {
+    return `${startDay} - ${endDay} ${MONTHS[startMonth]}, ${startYear}`;
+  }
+
+  if (startYear === endYear) {
+    return `${startDay} ${MONTHS[startMonth]} - ${endDay} ${MONTHS[endMonth]}, ${startYear}`;
+  }
+
+  return `${startDay} ${MONTHS[startMonth]}, ${startYear} - ${endDay} ${MONTHS[endMonth]}, ${endYear}`;
 }
 
 /* ==========================================================================
