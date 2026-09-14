@@ -13,23 +13,26 @@ export const proxy = auth((req) => {
   }
 
   const isRootRoute = nextUrl.pathname === '/';
-  const isExactDashboard = nextUrl.pathname === '/dashboard';
+
+  // Extract primary org slug from user session
+  const orgSlug = req.auth?.user?.orgs?.[0]?.slug;
+  const targetTimesheetUrl = orgSlug ? `/${orgSlug}/timesheets` : '/';
 
   // 2. Handle Logged-In Users
   if (isLoggedIn) {
-    const orgSlug = req.auth?.user?.orgs?.[0]?.slug;
-    const targetDashboardUrl = orgSlug ? `/dashboard/${orgSlug}` : '/dashboard';
+    // Check if the user is hitting root '/', bare '/timesheets', or bare '/[orgSlug]'
+    const isBareTimesheets = nextUrl.pathname === '/timesheets';
+    const isSingleSegmentOrg = orgSlug && nextUrl.pathname === `/${orgSlug}`;
 
-    // If user is logged in and hits '/' or '/dashboard', redirect to '/dashboard/[orgSlug]'
-    if (isRootRoute || isExactDashboard) {
-      return NextResponse.redirect(new URL(targetDashboardUrl, nextUrl));
+    if (isRootRoute || isBareTimesheets || isSingleSegmentOrg) {
+      return NextResponse.redirect(new URL(targetTimesheetUrl, nextUrl));
     }
 
     return NextResponse.next();
   }
 
-  // 3. Handle Logged-Out Users
-  // Allow access ONLY to '/' (the login page). Redirect all other routes back to '/'
+  // 3. Handle Logged-Out (Unauthenticated) Users
+  // Block ALL routes except strictly '/' (the login page)
   if (!isRootRoute) {
     let callbackUrl = nextUrl.pathname;
     if (nextUrl.search) {
