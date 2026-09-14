@@ -61,7 +61,7 @@ export default function LoginForm() {
 
         if (session?.user?.primaryOrgSlug) {
           toast.success('Authenticated successfully');
-          router.push(`/dashboard/${session.user.primaryOrgSlug}`);
+          router.push(`/${session.user.primaryOrgSlug}/timesheets`);
           router.refresh();
         } else {
           toast.error('Failed to resolve workspace details.');

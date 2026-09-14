@@ -3,12 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
+import {
+  ChevronDown,
+  LogOut,
+  // User as UserIcon
+} from 'lucide-react';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
+  // DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -101,20 +105,22 @@ export function Navbar({ user }: NavbarProps) {
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuGroup>
+              {/* <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="flex w-full cursor-pointer items-center">
                     <UserIcon className="mr-2 h-4 w-4 text-gray-500" />
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
-              </DropdownMenuGroup>
+              </DropdownMenuGroup> */}
 
-              <DropdownMenuSeparator />
+              {/* <DropdownMenuSeparator /> */}
 
               <DropdownMenuItem
                 className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-600"
-                onClick={() => signOut({ callbackUrl: '/login' })}
+                onClick={() => {
+                  signOut({ callbackUrl: '/' });
+                }}
               >
                 <LogOut className="mr-2 h-4 w-4 text-red-600" />
                 <span>Log out</span>
