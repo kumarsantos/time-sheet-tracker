@@ -9,21 +9,24 @@ export interface TimesheetSummary {
 }
 
 /**
- * Pure status derivation shared by the summary writer and the seed: COMPLETED
- * when the weekly total is at/above the target, otherwise INCOMPLETE.
+ * Pure status derivation shared by the summary writer and the seed: MISSING when
+ * no hours are logged at all, COMPLETED at/above the target, else INCOMPLETE.
  */
 export function deriveTimesheetStatus(
   totalHoursLogged: string | number,
   targetHours: string | number,
 ): TimesheetStatus {
+  const total = Number(totalHoursLogged) || 0;
+  if (total === 0) return 'MISSING';
   const target = Number(targetHours) || 40;
-  return Number(totalHoursLogged) >= target ? 'COMPLETED' : 'INCOMPLETE';
+  return total >= target ? 'COMPLETED' : 'INCOMPLETE';
 }
 
 /**
  * Recomputes a timesheet's totals from every work across all its day entries,
- * derives the status (INCOMPLETE when < target hours, COMPLETED otherwise),
- * persists both, and returns them so callers can echo the values back.
+ * derives the status (MISSING when no hours logged, COMPLETED at/above target,
+ * INCOMPLETE otherwise), persists both, and returns them so callers can echo
+ * the values back.
  *
  * Used by the add / edit / delete work endpoints so all three stay in sync.
  * Accepts an executor (either `db` or a transaction) so the summary write can

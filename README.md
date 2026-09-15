@@ -132,7 +132,7 @@ works N───1 projects                              (project delete is RESTR
 - **Weeks are Monday → Friday.** Each timesheet spans `startDate` (Mon) to `endDate` (Fri); week numbers are counted from the first Monday of the year.
 - **Day entries are assumed to pre-exist** — seeding populates one `time_entry` per weekday for the whole current year; the API can also auto-generate them via `POST /api/timesheets`.
 - **Hours per work item** are numeric, step `0.5`, clamped to `[0.5, 24]` on both the UI and the zod API schema. `totalHoursLogged` on a timesheet is derived by SQL `SUM(hours)` across all its entries' works.
-- **Status is derived, not user-set**: `totalHoursLogged >= targetHours` → `COMPLETED`, otherwise `INCOMPLETE`. `MISSING` is only the insert-time default before any totals exist. Global default target is `40.00 h` (org-level `defaultTargetHours`).
+- **Status is derived, not user-set**: `MISSING` when `0.00 h` are logged, `COMPLETED` when `totalHoursLogged >= targetHours`, otherwise `INCOMPLETE`. Global default target is `40.00 h` (org-level `defaultTargetHours`).
 - `SUBMITTED` / `APPROVED` / `REJECTED` enum values exist in the schema but are **not yet used** by the current flow.
 
 ### The "Create" timesheet flow

@@ -177,7 +177,7 @@ async function main(): Promise<void> {
         endDate: endDateStr,
         targetHours: '40.00',
         totalHoursLogged: '0.00',
-        status: 'INCOMPLETE', // 0 hrs logged < 40 target → clean slate for the demo
+        status: 'MISSING', // 0 hrs logged → no work logged at all, clean slate for the demo
       })
       .returning({ id: timesheets.id });
 

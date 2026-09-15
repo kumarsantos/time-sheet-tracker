@@ -30,9 +30,14 @@ describe('deriveTimesheetStatus', () => {
     expect(deriveTimesheetStatus(45, 40)).toBe('COMPLETED');
   });
 
+  it('marks the week MISSING when no hours are logged at all', () => {
+    expect(deriveTimesheetStatus('0', '40')).toBe('MISSING');
+    expect(deriveTimesheetStatus(0, 40)).toBe('MISSING');
+    expect(deriveTimesheetStatus('', '40')).toBe('MISSING');
+  });
+
   it('marks the week INCOMPLETE when below the target', () => {
     expect(deriveTimesheetStatus('39.99', '40')).toBe('INCOMPLETE');
-    expect(deriveTimesheetStatus('0', '40')).toBe('INCOMPLETE');
   });
 
   it('defaults an invalid target to 40 hours', () => {
@@ -60,11 +65,11 @@ describe('refreshTimesheetSummary', () => {
     expect(dbMock.update).toHaveBeenCalledWith(expect.anything());
   });
 
-  it('treats a nullable total as zero and persists INCOMPLETE', async () => {
+  it('treats a nullable total as zero and persists MISSING', async () => {
     mockSelectResult([{ total: null }]);
 
     const summary = await refreshTimesheetSummary(dbExecutor, 'ts-1', '40');
 
-    expect(summary).toEqual({ totalHoursLogged: '0.00', status: 'INCOMPLETE' });
+    expect(summary).toEqual({ totalHoursLogged: '0.00', status: 'MISSING' });
   });
 });
