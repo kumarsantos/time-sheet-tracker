@@ -14,6 +14,6 @@ export async function GET(request: Request) {
     const org = await requireOrgAccess(user.userId, user.user, orgSlug ?? undefined);
     if (isError(org)) return org;
 
-    return NextResponse.json({ data: getStatusItems() });
+    return NextResponse.json({ data: await getStatusItems(org.orgId) });
   });
 }

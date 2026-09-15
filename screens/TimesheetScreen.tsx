@@ -1,7 +1,7 @@
 import TimesheetListContainer from '@/components/timesheets/TimesheetListContainer';
 import { TIMESHEET_LIST_DEFAULT_LIMIT, TIMESHEET_LIST_MAX_LIMIT } from '@/lib/constants';
-import { getStatusItems, requireTenant } from '@/services/timesheet/data';
-import { getTimesheetListCached } from '@/services/timesheet/cache';
+import { requireTenant } from '@/services/timesheet/data';
+import { getStatusItemsCached, getTimesheetListCached } from '@/services/timesheet/cache';
 
 interface TimesheetScreenProps {
   orgSlug: string;
@@ -44,7 +44,7 @@ const TimesheetScreen = async ({
       from: startDate,
       to: endDate,
     }),
-    Promise.resolve(getStatusItems()),
+    getStatusItemsCached({ orgId: tenant.orgId, orgSlug }),
   ]);
 
   return (

@@ -13,8 +13,8 @@ import {
   workTypes,
   works,
 } from '@/app/database/schema';
-import { statusValues } from '@/data/dashboard';
 import { ISO_DATE_RE } from '@/lib/constants';
+import type { SelectOption } from '@/components/shared/Dropdown';
 import { formatWeekRangeLabel } from '@/lib/helpers/date-time';
 import type { TimesheetStatus } from '@/types/timesheets';
 import type {
@@ -321,7 +321,27 @@ export async function getAddWorkOptions(orgId: string): Promise<AddWorkOptions> 
   };
 }
 
-/** Static status filter options shared by the list screen and status-items API. */
-export function getStatusItems() {
-  return statusValues;
+/**
+ * Status filter options derived from the org's actual timesheets instead of a
+ * hardcoded list: "All" + every distinct status present in the data, ordered by
+ * the schema enum. Future statuses auto-appear; unused ones drop off.
+ */
+export async function getStatusItems(orgId: string): Promise<SelectOption[]> {
+  const rows = await db
+    .select({ status: timesheets.status })
+    .from(timesheets)
+    .where(eq(timesheets.orgId, orgId))
+    .groupBy(timesheets.status);
+
+  const present = new Set(rows.map((row) => row.status));
+
+  return [
+    { label: 'All', value: 'all' },
+    ...timesheetStatusEnum.enumValues
+      .filter((status) => present.has(status))
+      .map((status) => ({
+        label: status.charAt(0) + status.slice(1).toLowerCase(),
+        value: status.toLowerCase(),
+      })),
+  ];
 }

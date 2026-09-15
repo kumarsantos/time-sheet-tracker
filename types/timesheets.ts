@@ -8,11 +8,6 @@ export interface TimesheetItem {
   status: TimesheetStatus;
 }
 
-export interface StatusValue {
-  label: string;
-  value: string;
-}
-
 export interface TimesheetQueryParams {
   orgSlug: string;
   startDate?: string;

@@ -2,12 +2,14 @@ import 'server-only';
 
 import { revalidateTag, unstable_cache } from 'next/cache';
 import {
+  getStatusItems as readStatusItems,
   getTimesheetDetail as readTimesheetDetail,
   getTimesheetList as readTimesheetList,
   type TimesheetListParams,
   type TimesheetListResult,
 } from './data';
 import type { TimesheetDetail } from '@/types/timesheet-details';
+import type { SelectOption } from '@/components/shared/Dropdown';
 
 /**
  * On-demand ISR tags.
@@ -64,5 +66,18 @@ export function getTimesheetDetailCached(args: DetailCacheArgs): Promise<Timeshe
       revalidate: TIMESHEET_DATA_TTL,
       tags: [timesheetTags.detail(args.timesheetId), timesheetTags.list(args.orgSlug)],
     },
+  )(args);
+}
+
+/** ISR-backed distinct status options, purged with the org list so mutations refresh them. */
+export function getStatusItemsCached(args: {
+  orgId: string;
+  orgSlug: string;
+}): Promise<SelectOption[]> {
+  const { orgSlug } = args;
+  return unstable_cache(
+    async ({ orgId }: { orgId: string }) => readStatusItems(orgId),
+    ['timesheet-status-items'],
+    { revalidate: TIMESHEET_DATA_TTL, tags: [timesheetTags.list(orgSlug)] },
   )(args);
 }
