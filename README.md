@@ -234,6 +234,8 @@ pnpm db:migrate:dev # applies tracked SQL migrations in app/database/migrations
 
 > Schema changes? Edit `app/database/schema.ts`, then `pnpm db:generate` to write a new migration, then re-run `pnpm db:migrate:dev`.
 
+> The `db:*` scripts load their env file themselves via `dotenv` (`.env.development` / `.env.production`), so on hosts like Vercel — where no `.env.*` files exist — they automatically fall back to the platform-injected `DATABASE_URL`/`AUTH_SECRET` environment variables.
+
 ### 5. Seed demo data
 
 ```bash
@@ -268,25 +270,26 @@ SEED_DEMO_EMAIL=you@example.com SEED_DEMO_PASSWORD='Your#Pass1' SEED_DEMO_ORG_SL
 
 ## Scripts
 
-| Script                 | Description                                           |
-| ---------------------- | ----------------------------------------------------- |
-| `pnpm dev`             | Start the dev server (`http://localhost:3000`)        |
-| `pnpm dev:prod`        | Run dev with `NODE_ENV=production` (Neon HTTP driver) |
-| `pnpm build`           | Production build (`next build`)                       |
-| `pnpm start`           | Serve the production build                            |
-| `pnpm type-check`      | `tsc --noEmit`                                        |
-| `pnpm lint`            | ESLint                                                |
-| `pnpm format`          | Prettier write                                        |
-| `pnpm test`            | Vitest (unit + component)                             |
-| `pnpm test:watch`      | Vitest watch mode                                     |
-| `pnpm test:coverage`   | Vitest with coverage                                  |
-| `pnpm check`           | Lint + format + types in one shot                     |
-| `pnpm db:up`/`db:down` | Start/stop the Docker Postgres                        |
-| `pnpm db:generate`     | Write a new Drizzle migration from `schema.ts`        |
-| `pnpm db:migrate:dev`  | Apply migrations to the development database          |
-| `pnpm db:migrate:prod` | Apply migrations to the production database           |
-| `pnpm db:seed`         | Wipe + seed demo data (development)                   |
-| `pnpm db:studio`       | Open Drizzle Studio (database browser)                |
+| Script                 | Description                                                            |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `pnpm dev`             | Start the dev server (`http://localhost:3000`)                         |
+| `pnpm dev:prod`        | Run dev with `NODE_ENV=production` (Neon HTTP driver)                  |
+| `pnpm build`           | Production build (`next build`)                                        |
+| `pnpm start`           | Serve the production build                                             |
+| `pnpm type-check`      | `tsc --noEmit`                                                         |
+| `pnpm lint`            | ESLint                                                                 |
+| `pnpm format`          | Prettier write                                                         |
+| `pnpm test`            | Vitest (unit + component)                                              |
+| `pnpm test:watch`      | Vitest watch mode                                                      |
+| `pnpm test:coverage`   | Vitest with coverage                                                   |
+| `pnpm check`           | Lint + format + types in one shot                                      |
+| `pnpm db:up`/`db:down` | Start/stop the Docker Postgres                                         |
+| `pnpm db:generate`     | Write a new Drizzle migration from `schema.ts`                         |
+| `pnpm db:migrate:dev`  | Apply migrations to the development database                           |
+| `pnpm db:migrate:prod` | Apply migrations to the production database                            |
+| `pnpm db:seed`         | Wipe + seed demo data (development)                                    |
+| `pnpm db:seed:prod`    | Wipe + seed demo data (production; loads `.env.production` via dotenv) |
+| `pnpm db:studio`       | Open Drizzle Studio (database browser)                                 |
 
 ## Testing & CI
 

@@ -24,9 +24,10 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:migrate:dev": "cross-env NODE_ENV=development tsx --env-file=.env.development app/database/migrate.ts",
-    "db:migrate:prod": "cross-env NODE_ENV=production tsx --env-file=.env.production app/database/migrate.ts",
-    "db:seed": "cross-env NODE_ENV=development tsx --env-file=.env.development app/database/seed.ts",
+    "db:migrate:dev": "cross-env NODE_ENV=development tsx app/database/migrate.ts",
+    "db:migrate:prod": "cross-env NODE_ENV=production tsx app/database/migrate.ts",
+    "db:seed": "cross-env NODE_ENV=development tsx app/database/seed.ts",
+    "db:seed:prod": "cross-env NODE_ENV=production tsx app/database/seed.ts",
     "prod:build": "pnpm db:migrate:prod && next build",
     "analyse": "next experimental-analyze"
   },
