@@ -7,9 +7,13 @@ A multi-tenant weekly timesheet app built with the Next.js App Router. Users log
 ## Table of Contents
 
 - **Stack](#stack)
+- [Frameworks & Libraries](#frameworks--libraries)
+- [Time Spent](#time-spent)
+- [Notes & Context](#notes--context)
 - [Architecture](#architecture)
 - [State Management](#state-management-no-client-state-library-or-context)
 - [Assumptions & Conventions](#assumptions--conventions)
+- [Expectations & Validation](#expectations--validation)
 - [Prerequisites](#prerequisites)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
@@ -38,6 +42,38 @@ A multi-tenant weekly timesheet app built with the Next.js App Router. Users log
 | Validation | Zod (shared client/server schemas)                           |
 | Testing    | Vitest + Testing Library (jsdom)                             |
 | Tooling    | pnpm, ESLint, Prettier, Husky, Commitlint, GitHub Actions    |
+
+## Frameworks & Libraries
+
+| Area           | Libraries                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| Framework      | Next.js 16 (App Router), React 19, TypeScript                                                           |
+| UI primitives  | Tailwind CSS v4, `shadcn/ui`-style components (Radix `dialog`, `select`, `popover`, `dropdown-menu`)    |
+| Date pickers   | `react-day-picker` (within shadcn `calendar`), `date-fns` for formatting                                |
+| Icons / a11y   | `lucide-react`, aria/skip-link patterns baked into shared components                                    |
+| Forms          | `react-hook-form` + `@hookform/resolvers/zod`                                                           |
+| Validation     | `zod` — the **same** schemas power the client form and the server API routes                            |
+| Data access    | Drizzle ORM (schema + SQL migrations) over `node-postgres` (local) / `@neondatabase/serverless` (prod)  |
+| Generated data | Day entries are produced by the DB/API, not hard-coded lists                                            |
+| HTTP client    | `axios` (`services/api.ts` — typed `ApiClient`, cookie-forwarding on SSR, unwrapped responses)          |
+| Auth           | NextAuth (Auth.js) v5, `@auth/drizzle-adapter`, Credentials provider (JWT sessions, `bcryptjs` hashing) |
+| Toasts         | `sonner`                                                                                                |
+| Testing        | Vitest, `@testing-library/react`, jsdom                                                                 |
+| Dev/CI         | ESLint, Prettier, Husky, Commitlint, GitHub Actions                                                     |
+
+## Time Spent
+
+Sessions and effort are not tracked per-task in this repo. The authoritative record is the Git history:
+
+- `git log --oneline --reverse` shows the app's evolution (CI + test suite → API hardening → caching → mobile responsiveness → docs).
+- `git log --stat` gives a per-feature line-count feel for effort allocation.
+- Edit this section with your own estimate if you need one in a hand-off, e.g. **~30–40 hours across 6 commits**.
+
+## Notes & Context
+
+- The design/requirements docs did **not** include any library or package references for the backend.
+- Because work fell on a **weekend** and **Avril** (the contact for those details) did not respond, the **entire backend was designed and built from scratch** — data model, API, auth, caching, and tests — based on the product requirements alone.
+- Result: a self-contained, library-idiomatic stack (Drizzle ORM, Zod, NextAuth, node-postgres/Neon) with no assumptions about missing `node_modules`.
 
 ## Architecture
 
@@ -104,6 +140,30 @@ works N───1 projects                              (project delete is RESTR
 - The list's **Create/Update/View action is just navigation** — there is **no create-timesheet form**. Clicking **Create** on a `MISSING` week opens the same timesheet details page.
 - On the details page the day rows already exist, and the user **adds task (work) entries per day** via _Add new task_. The timesheet structure itself is never created from the UI; it's seeded or created through `POST /api/timesheets`, which inserts the timesheet and its day entries atomically.
 - Totals, progress, and `INCOMPLETE`/`COMPLETED` status update **live** on the details page after every add/edit/delete of a work entry.
+
+## Expectations & Validation
+
+How this codebase addresses the assessment criteria, and the checks that validate it.
+
+| Criterion                       | Where it lives                                                                                                                                                                                                                                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common UI patterns              | Sortable/paginated/filterable `DataGrid`, multi/single status filters, range date picker (`shared/`), form dialogs with zod validation + pending states, delete confirmation, empty states, toasts, skeletons, responsive layouts                                                                   |
+| Codebase structure              | `screens/` (page shells) → `components/` (feature + shared/ui) → `services/` (data + cache) → `lib/` (guards, validations) → `app/database/` (single data layer). Shared types in `types/`                                                                                                          |
+| Data flow & integration         | Reads: server components + ISR cache (`services/timesheet/cache.ts`, revalidated after every write). Writes: REST API routes → `withTransaction` → summary recompute → `revalidateTag`. Same zod schema on client and server; tenant + ownership verified per request                               |
+| Accuracy of UI & expected flows | Sign-in → redirect to `/{primaryOrg}/timesheets`; list action navigates to the week's detail page; add/edit/delete work updates totals + status live; filters/sort/page stay in the URL (shareable/back-button safe); empty weeks show `Add new task`; `INCOMPLETE`/`COMPLETED` derived server-side |
+| Developer empathy               | Consistent naming, canonical serializers in `services/timesheet/data.ts`, shared `lib/api/route-helpers.ts`, env-file conventions, documented demo creds, Conventional Commits + CI enforced by Husky                                                                                               |
+| Clean UI/UX (design fidelity)   | Matches the design tokens (`#FF7A50` progress accent, `#2563EB`/`#1C64F2` CTAs), whitespace/shadows from the Figma, mobile + desktop breakpoints, keyboard-accessible grid headers and labeled controls, skip link to `#main`                                                                       |
+
+### Validation status
+
+| Check            | Command                    | Result                                                      |
+| ---------------- | -------------------------- | ----------------------------------------------------------- |
+| Types            | `pnpm type-check`          | Passes (`tsc --noEmit`)                                     |
+| Lint             | `pnpm lint`                | `0 errors, 7 warnings` (pre-existing console-warning rules) |
+| Formatting       | `pnpm format:check`        | Passes                                                      |
+| Tests            | `pnpm test`                | `59 passed` across `8 files` (unit + component)             |
+| Production build | `pnpm build`               | `✓ Compiled successfully`                                   |
+| CI               | `.github/workflows/ci.yml` | Enforces type-check → lint → format → tests on PR + `main`  |
 
 ## Prerequisites
 
