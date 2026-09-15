@@ -6,8 +6,10 @@ A multi-tenant weekly timesheet app built with the Next.js App Router. Users log
 
 ## Table of Contents
 
-- [Stack](#stack)
+- **Stack](#stack)
 - [Architecture](#architecture)
+- [State Management](#state-management-no-client-state-library-or-context)
+- [Assumptions & Conventions](#assumptions--conventions)
 - [Prerequisites](#prerequisites)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
@@ -45,6 +47,63 @@ A multi-tenant weekly timesheet app built with the Next.js App Router. Users log
 - **Atomic writes**: timesheet + day-entry creation, and add/edit/delete work plus summary recompute, run inside `db.transaction` (via `withTransaction`) locally; sequential fallback on the Neon HTTP driver.
 - **Abuse protection**: unauthenticated `/api/*` calls get a JSON `401`, and mutation endpoints are rate-limited per authenticated user (429 + `Retry-After`).
 - **Monorepo-style config**: enum/const-heavy config lives in `lib/constants.ts`; shared types in `types/`.
+
+## State Management (no client state library or Context)
+
+The app **deliberately has no client-side state library (Zustand/Redux/Jotai/…) and no React Context**. The only client-side primitives in use are local `useState`, `useTransition`, `react-hook-form` (field-local form state), and the URL itself. Here is where each kind of state lives:
+
+| Kind of state               | Owned by                                               | Examples                                               |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| Domain / business data      | Server (DB) + ISR cache, rendered by server components | Timesheets, entries, works, totals                     |
+| Query / filter / pagination | **URL search params** (`useQueryParams` hook)          | `status`, `sort`, `order`, `page`, `limit`, date range |
+| Ephemeral UI state          | Local component state                                  | Open dialogs, pending transitions                      |
+| Form values                 | `react-hook-form` (component-scoped)                   | Add/edit work dialog fields                            |
+| Optimistic mutations        | Local state echoed from the API response               | Totals/status update right after save                  |
+
+**Why no state library or Context?**
+
+1. **There is no truly shared client state.** Everything mutable (totals, status, entries) is owned by the server; read-only views are server-rendered from the ISR cache. A global store or Context would duplicate server truth in the browser and drift from it.
+2. **The URL is the right store for filters.** Status/sort/page/date live in search params, so every view is shareable, bookmarkable, and back-button safe with zero synchronization code.
+3. **Server-first keeps the client small.** App Router server components mean global store state would force shared data into client bundles, hurting SSR, TTI, and bundle size for data users never contextually need.
+4. **Less boilerplate, fewer failure modes.** No providers to mount, no selectors, no actions/reducers, no desync bugs — and components render in tests the same way they render in production (the Vitest suite mounts them directly with mocked navigation).
+5. **Cross-component interactions are few and shallow** (dialog ↔ row ↔ details view), so plain prop-drilling covers them with no propelling cost.
+
+The layering keeps this reversible: if a real need appears (multi-user live editing, cross-page shared caches, optimistic offline writes), a targeted store can be introduced where it earns its keep without ripping anything out.
+
+## Assumptions & Conventions
+
+### Tenancy & roles
+
+- **An organization is the tenant.** Its `slug` is globally unique and is the URL key everywhere (`/{orgSlug}/timesheets`, `/{orgSlug}/timesheets/{id}`).
+- **A user can belong to many organizations** through the `org_memberships` join table (unique per `user_id` + `org_id`). Roles: `OWNER`, `ADMIN`, `MEMBER` (default `MEMBER`).
+- **The app assumes one primary org per user**: the login/session flow treats `orgs[0]` as the active workspace, and the user is redirected to `/{primaryOrgSlug}/timesheets` after signing in. Authorization is still verified server-side against the DB membership table on every request — the session claim alone is never trusted.
+- The seeded demo user is `OWNER` of exactly one org ("Acme Analytics").
+
+### Data model & relations
+
+```
+users 1───N org_memberships N───1 organizations   (membership row has the role)
+organizations 1───N projects                       (a project always belongs to one org)
+organizations 1───N work_types                     (org-scoped picklists: Development, Meeting, …)
+organizations 1───N timesheets N───1 users         (one week = one timesheet per user per org)
+timesheets 1───N time_entries                      (Mon–Fri day entries, one per weekday)
+time_entries 1───N works N───1 users               (hours logged against a project)
+works N───1 projects                              (project delete is RESTRICTed while works exist)
+```
+
+### Week, hours & status model
+
+- **Weeks are Monday → Friday.** Each timesheet spans `startDate` (Mon) to `endDate` (Fri); week numbers are counted from the first Monday of the year.
+- **Day entries are assumed to pre-exist** — seeding populates one `time_entry` per weekday for the whole current year; the API can also auto-generate them via `POST /api/timesheets`.
+- **Hours per work item** are numeric, step `0.5`, clamped to `[0.5, 24]` on both the UI and the zod API schema. `totalHoursLogged` on a timesheet is derived by SQL `SUM(hours)` across all its entries' works.
+- **Status is derived, not user-set**: `totalHoursLogged >= targetHours` → `COMPLETED`, otherwise `INCOMPLETE`. `MISSING` is only the insert-time default before any totals exist. Global default target is `40.00 h` (org-level `defaultTargetHours`).
+- `SUBMITTED` / `APPROVED` / `REJECTED` enum values exist in the schema but are **not yet used** by the current flow.
+
+### The "Create" timesheet flow
+
+- The list's **Create/Update/View action is just navigation** — there is **no create-timesheet form**. Clicking **Create** on a `MISSING` week opens the same timesheet details page.
+- On the details page the day rows already exist, and the user **adds task (work) entries per day** via _Add new task_. The timesheet structure itself is never created from the UI; it's seeded or created through `POST /api/timesheets`, which inserts the timesheet and its day entries atomically.
+- Totals, progress, and `INCOMPLETE`/`COMPLETED` status update **live** on the details page after every add/edit/delete of a work entry.
 
 ## Prerequisites
 
