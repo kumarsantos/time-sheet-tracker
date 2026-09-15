@@ -48,7 +48,7 @@ const TimesheetScreen = async ({
   ]);
 
   return (
-    <div className="p-6 px-32">
+    <div className="px-4 py-6 sm:px-6 lg:px-32">
       <TimesheetListContainer
         statusItems={statusItems}
         timesheets={result.data}

@@ -159,7 +159,7 @@ export default function TimesheetDetailView({ orgSlug, data }: TimesheetDetailVi
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl rounded-lg border border-gray-100 bg-white p-8 shadow-sm">
+    <div className="mx-auto w-full max-w-7xl rounded-lg border border-gray-100 bg-white p-4 shadow-sm sm:p-8">
       <TimesheetDetailsHeader
         totalHours={totalHours}
         targetHours={targetHours}

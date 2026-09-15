@@ -92,7 +92,7 @@ export function DatePicker(props: DatePickerProps) {
   );
 
   return (
-    <Field className={cn('w-fit', className)}>
+    <Field className={cn('w-full', className)}>
       {label && <FieldLabel>{label}</FieldLabel>}
       <Popover>
         <PopoverTrigger asChild>

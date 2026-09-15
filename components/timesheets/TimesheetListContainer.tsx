@@ -96,7 +96,7 @@ const TimesheetListContainer = ({
   );
 
   return (
-    <div className="mx-auto w-full space-y-4 rounded-lg bg-white p-6 shadow">
+    <div className="mx-auto w-full space-y-4 rounded-lg bg-white p-4 shadow sm:p-6">
       <h1 className="text-2xl font-bold text-gray-900">Your Timesheets</h1>
       <StatusSection statusItems={statusItems} statusValue={statusValue} />
       <DataGrid

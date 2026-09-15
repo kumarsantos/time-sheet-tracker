@@ -82,13 +82,15 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
   };
 
   return (
-    <div className={`flex items-center gap-2 ${isPending ? 'opacity-70 transition-opacity' : ''}`}>
+    <div
+      className={`flex flex-wrap items-center gap-2 ${isPending ? 'opacity-70 transition-opacity' : ''}`}
+    >
       <DatePicker
         mode="range"
         placeholder="Date Range"
         value={dateRange}
         onSelect={handleDateSelect}
-        className="w-48"
+        className="w-full sm:w-48"
       />
 
       {multipleStatus ? (
@@ -108,7 +110,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
             });
           }}
           placeholder="Status"
-          className="w-auto min-w-48"
+          className="w-full sm:w-auto sm:min-w-48"
         />
       ) : (
         <StatusFilter
@@ -129,7 +131,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({
             });
           }}
           placeholder="Status"
-          className="w-auto min-w-48"
+          className="w-full sm:w-auto sm:min-w-48"
         />
       )}
     </div>

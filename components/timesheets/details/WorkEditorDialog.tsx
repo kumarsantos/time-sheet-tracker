@@ -87,7 +87,7 @@ export function WorkEditorDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-w-lg gap-0 overflow-hidden rounded-lg p-0 sm:max-w-xl"
+        className="gap-0 overflow-hidden rounded-lg p-0 sm:max-w-xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">

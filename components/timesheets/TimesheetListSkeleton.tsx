@@ -3,7 +3,7 @@ const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => i);
 
 const TimesheetListSkeleton = () => {
   return (
-    <div className="p-6 px-32">
+    <div className="px-4 py-6 sm:px-6 lg:px-32">
       <div className="mx-auto w-full space-y-4 rounded-lg bg-white p-6 shadow">
         <div className="h-8 w-56 animate-pulse rounded-md bg-gray-200" />
 

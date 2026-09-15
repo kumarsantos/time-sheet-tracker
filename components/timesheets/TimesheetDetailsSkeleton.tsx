@@ -3,16 +3,16 @@ const SKELETON_WORKS = Array.from({ length: 2 }, (_, i) => i);
 
 const TimesheetDetailsSkeleton = () => {
   return (
-    <div className="p-6 px-32">
-      <div className="mx-auto w-full max-w-7xl rounded-lg border border-gray-100 bg-white p-8 shadow-sm">
+    <div className="px-4 py-6 sm:px-6 lg:px-32">
+      <div className="mx-auto w-full max-w-7xl rounded-lg border border-gray-100 bg-white p-4 shadow-sm sm:p-8">
         {/* Header */}
-        <div className="flex justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="h-8 w-56 animate-pulse rounded-md bg-gray-200" />
 
           {/* Progress tooltip header */}
-          <div className="w-52">
+          <div className="w-full sm:w-52">
             <div className="relative w-full">
-              <div className="absolute -top-12 left-[70%] z-10 -translate-x-1/2 rounded-2xl bg-gray-200 px-4 py-2 shadow-lg">
+              <div className="absolute -top-12 left-[70%] z-10 hidden -translate-x-1/2 rounded-2xl bg-gray-200 px-4 py-2 shadow-lg sm:block">
                 <div className="h-4 w-24 animate-pulse rounded bg-gray-300/70" />
               </div>
               <div className="h-2.5 w-full animate-pulse rounded-full bg-gray-200">

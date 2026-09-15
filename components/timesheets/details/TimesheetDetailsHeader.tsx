@@ -19,11 +19,11 @@ export function TimesheetDetailsHeader({
 }: TimesheetDetailsHeaderProps) {
   return (
     <>
-      <div className="flex justify-between gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">This week’s timesheet</h1>
 
         {/* Progress Bar Header Component */}
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <ProgressTooltip currentHours={totalHours} targetHours={targetHours} />
         </div>
       </div>

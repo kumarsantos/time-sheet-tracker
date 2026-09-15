@@ -87,7 +87,9 @@ export function Navbar({ user }: NavbarProps) {
                   </AvatarFallback>
                 </Avatar>
 
-                <span className="text-sm font-medium text-gray-700">{userName}</span>
+                <span className="hidden text-sm font-medium text-gray-700 sm:block">
+                  {userName}
+                </span>
 
                 <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-200" />
               </button>

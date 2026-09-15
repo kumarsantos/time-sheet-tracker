@@ -29,7 +29,7 @@ export default async function PrivateLayout({ children, params }: Readonly<Priva
       <main id="main" tabIndex={-1} className="flex w-full flex-col">
         {children}
       </main>
-      <div className="mx-auto mb-4 w-full max-w-7xl px-12">
+      <div className="mx-auto mb-4 w-full max-w-7xl px-4 sm:px-6 lg:px-12">
         <Footer />
       </div>
     </div>

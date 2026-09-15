@@ -21,13 +21,18 @@ export default function ProgressTooltip({
       ? Math.min(100, Math.max(0, Math.round((currentHours / targetHours) * 100)))
       : 0;
 
+  // Keep the centered bubble inside the track on every viewport: clamp its
+  // anchor so the caret stays near the fill tip instead of overflowing the
+  // card at the 0%/100% extremes.
+  const clampedLeft = Math.min(88, Math.max(12, percentage));
+
   return (
     <div className="flex w-full flex-col gap-2">
-      <div className="relative w-full">
+      <div className="relative w-full px-3">
         {/* Floating speech-bubble tooltip */}
         <div
           className="absolute -top-12 z-10 -translate-x-1/2 rounded-sm bg-white px-4 py-2 shadow-lg"
-          style={{ left: `${percentage}%` }}
+          style={{ left: `${clampedLeft}%` }}
         >
           <span className="text-sm font-semibold whitespace-nowrap text-slate-900">
             {currentHours}/{targetHours} hrs
